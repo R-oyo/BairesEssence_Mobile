@@ -8,6 +8,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,8 +71,7 @@ fun BairesEssenceLogin() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 32.dp, vertical = 50.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
             // CONTENIDO SUPERIOR (Título e Ícono)
@@ -98,26 +99,30 @@ fun BairesEssenceLogin() {
                         color = Color.Black
                     )
                 )
+            }
 
+            // Este Spacer flexible empuja el formulario y el botón de registro hacia abajo.
+            Spacer(modifier = Modifier.weight(1f))
 
-
-
-                // Este Spacer empuja los Inputs hasta el Recuadro Negro
-                Spacer(modifier = Modifier.height(80.dp))
-
+            // CONTENIDO DEL MEDIO (Formulario)
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 // Input Email
                 TextField(
                     value = email,
                     onValueChange = { email = it },
                     placeholder = { Text("Mail", color = Color.LightGray) },
                     singleLine = true,
-                    colors = TextFieldDefaults.textFieldColors(
-                        containerColor = Color.Transparent,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
                         focusedIndicatorColor = Color.White,
                         unfocusedIndicatorColor = Color.LightGray,
-                        // Corregido: Colores de texto para Material 3
-                        unfocusedTextColor = Color.White,
                         focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
                         cursorColor = Color.White
                     ),
                     modifier = Modifier.fillMaxWidth()
@@ -132,13 +137,14 @@ fun BairesEssenceLogin() {
                     placeholder = { Text("Password", color = Color.LightGray) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
-                    colors = TextFieldDefaults.textFieldColors(
-                        containerColor = Color.Transparent,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
                         focusedIndicatorColor = Color.White,
                         unfocusedIndicatorColor = Color.LightGray,
-                        // Corregido: Colores de texto para Material 3
-                        unfocusedTextColor = Color.White,
                         focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
                         cursorColor = Color.White
                     ),
                     modifier = Modifier.fillMaxWidth()
@@ -159,8 +165,10 @@ fun BairesEssenceLogin() {
                 }
             }
 
+            // Este Spacer flexible empuja el texto de registro hacia el final.
+            Spacer(modifier = Modifier.weight(1f))
 
-            // CONTENIDO INFERIOR (Registro) - PUSHED TO BOTTOM
+            // CONTENIDO INFERIOR (Registro)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,

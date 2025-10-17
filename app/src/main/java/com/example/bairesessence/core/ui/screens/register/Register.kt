@@ -11,6 +11,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -84,7 +86,8 @@ fun BairesEssenceRegister() {
                 .fillMaxSize()
                 .padding(horizontal = 32.dp, vertical = 50.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            // LAYOUT CORREGIDO: Usamos Spacers flexibles en lugar de SpaceBetween
+            verticalArrangement = Arrangement.Top
         ) {
 
             // CONTENIDO SUPERIOR (Título e Ícono)
@@ -112,24 +115,28 @@ fun BairesEssenceRegister() {
                         color = Color.Black
                     )
                 )
+            }
 
-                // Espaciador para empezar el recuadro negro
-                Spacer(modifier = Modifier.height(90.dp))
+            // Este Spacer empuja el formulario hacia el centro
+            Spacer(modifier = Modifier.weight(1f))
 
-                // --- CAMPOS DE REGISTRO ---
-
+            // --- SECCIÓN CENTRAL: FORMULARIO DE REGISTRO ---
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 // Input Name
                 TextField(
                     value = name,
                     onValueChange = { name = it },
                     placeholder = { Text("Name", color = Color.LightGray) },
                     singleLine = true,
-                    colors = TextFieldDefaults.textFieldColors(
-                        containerColor = Color.Transparent,
+                    // COLORS CORREGIDO
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
                         focusedIndicatorColor = Color.White,
                         unfocusedIndicatorColor = Color.LightGray,
-                        unfocusedTextColor = Color.White,
                         focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
                         cursorColor = Color.White
                     ),
                     modifier = Modifier.fillMaxWidth()
@@ -143,12 +150,15 @@ fun BairesEssenceRegister() {
                     onValueChange = { email = it },
                     placeholder = { Text("Mail", color = Color.LightGray) },
                     singleLine = true,
-                    colors = TextFieldDefaults.textFieldColors(
-                        containerColor = Color.Transparent,
+                    // COLORS CORREGIDO
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
                         focusedIndicatorColor = Color.White,
                         unfocusedIndicatorColor = Color.LightGray,
-                        unfocusedTextColor = Color.White,
                         focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
                         cursorColor = Color.White
                     ),
                     modifier = Modifier.fillMaxWidth()
@@ -163,12 +173,15 @@ fun BairesEssenceRegister() {
                     placeholder = { Text("Password", color = Color.LightGray) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
-                    colors = TextFieldDefaults.textFieldColors(
-                        containerColor = Color.Transparent,
+                    // COLORS CORREGIDO
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
                         focusedIndicatorColor = Color.White,
                         unfocusedIndicatorColor = Color.LightGray,
-                        unfocusedTextColor = Color.White,
                         focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
                         cursorColor = Color.White
                     ),
                     modifier = Modifier.fillMaxWidth()
@@ -183,17 +196,19 @@ fun BairesEssenceRegister() {
                     placeholder = { Text("Confirm Password", color = Color.LightGray) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
-                    colors = TextFieldDefaults.textFieldColors(
-                        containerColor = Color.Transparent,
+                    // COLORS CORREGIDO
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
                         focusedIndicatorColor = Color.White,
                         unfocusedIndicatorColor = Color.LightGray,
-                        unfocusedTextColor = Color.White,
                         focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
                         cursorColor = Color.White
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
-
 
                 Spacer(modifier = Modifier.height(30.dp)) // Espacio antes del botón
 
@@ -208,8 +223,10 @@ fun BairesEssenceRegister() {
                 ) {
                     Text(text = "Register", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 }
-            } // Fin Column Superior
+            } // Fin Column Central
 
+            // Este Spacer empuja el texto de login hacia abajo
+            Spacer(modifier = Modifier.weight(1f))
 
             // CONTENIDO INFERIOR (Login)
             Row(
