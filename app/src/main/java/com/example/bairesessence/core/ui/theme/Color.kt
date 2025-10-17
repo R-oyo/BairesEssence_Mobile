@@ -1,4 +1,4 @@
-package com.example.bairesessence.ui.theme
+package com.example.bairesessence.core.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

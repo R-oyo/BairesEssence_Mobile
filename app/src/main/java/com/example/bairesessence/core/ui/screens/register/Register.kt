@@ -1,3 +1,5 @@
+package com.example.bairesessence.core.ui.screens.register
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -24,7 +26,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bairesessence.R
-import com.example.bairesessence.ui.theme.BairesEssenceTheme
+import com.example.bairesessence.core.ui.theme.BairesEssenceTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

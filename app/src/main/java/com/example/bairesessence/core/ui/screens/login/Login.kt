@@ -1,6 +1,5 @@
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
+package com.example.bairesessence.core.ui.screens.login
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -24,7 +23,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bairesessence.R
-import com.example.bairesessence.ui.theme.BairesEssenceTheme
+import com.example.bairesessence.core.ui.theme.BairesEssenceTheme
 
 
 @OptIn(ExperimentalMaterial3Api::class)

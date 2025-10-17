@@ -1,5 +1,5 @@
 // LandingScreen.kt
-package com.example.bairesessence.ui.screens // Asegúrate de usar el paquete correcto
+package com.example.bairesessence.core.ui.screens.landing // Asegúrate de usar el paquete correcto
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -21,7 +21,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bairesessence.R // Necesitas importar tu R
-import com.example.bairesessence.ui.theme.BairesEssenceTheme // Necesitas importar tu Theme
+import com.example.bairesessence.core.ui.theme.BairesEssenceTheme // Necesitas importar tu Theme
 
 // Renombrada de WelcomeScreen a LandingScreen
 @Composable
