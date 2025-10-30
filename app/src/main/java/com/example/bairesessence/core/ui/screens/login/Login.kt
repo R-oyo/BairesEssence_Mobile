@@ -8,8 +8,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,17 +22,24 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalInspectionMode
 import com.example.bairesessence.R
 import com.example.bairesessence.core.ui.theme.BairesEssenceTheme
+import com.google.firebase.auth.FirebaseAuth
 
-
-@OptIn(ExperimentalMaterial3Api::class)
+// -------------------------
+// UI pura sin Firebase
+// -------------------------
 @Composable
-fun BairesEssenceLogin() {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-
-    // Definición del TextStyle con Sombra Blanca
+fun LoginScreenUI(
+    email: String,
+    onEmailChange: (String) -> Unit,
+    password: String,
+    onPasswordChange: (String) -> Unit,
+    onLoginClick: () -> Unit,
+    onGoogleLoginClick: () -> Unit,
+    onRegisterClick: () -> Unit
+) {
     val whiteShadowStyle = TextStyle(
         shadow = Shadow(
             color = Color.White,
@@ -43,10 +48,8 @@ fun BairesEssenceLogin() {
         )
     )
 
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // 1. FONDO DE IMAGEN
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Fondo
         Image(
             painter = painterResource(id = R.drawable.baires_background),
             contentDescription = null,
@@ -54,19 +57,17 @@ fun BairesEssenceLogin() {
             contentScale = ContentScale.Crop
         )
 
-        // 2. RECUIADRO NEGRO (Layer de fondo que empieza en la parte superior del formulario)
+        // Recuadro negro
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                // Ocupa el 70% de la altura de la pantalla, que es donde queremos que empiece el negro
                 .fillMaxHeight(0.7f)
-                .align(Alignment.BottomCenter) // Alineado a la parte inferior
-                // Aplica el recorte de las esquinas superiores
+                .align(Alignment.BottomCenter)
                 .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
-                .background(Color.Black) // Fondo completamente negro y opaco
+                .background(Color.Black)
         )
 
-        // 3. CAPA DE CONTENIDO (Todos los elementos UI, superpuestos al negro y a la imagen)
+        // Contenido UI
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -74,23 +75,15 @@ fun BairesEssenceLogin() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            // CONTENIDO SUPERIOR (Título e Ícono)
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-
-                // Espacio inicial para empujar el contenido desde el borde superior
                 Spacer(modifier = Modifier.height(60.dp))
-
-                // Ícono de ubicación
                 Icon(
                     imageVector = Icons.Filled.LocationOn,
                     contentDescription = "Location Icon",
                     tint = Color.Black,
                     modifier = Modifier.size(48.dp)
                 )
-
                 Spacer(modifier = Modifier.height(16.dp))
-
-                // Título
                 Text(
                     text = "BAIRES ESSENCE",
                     style = whiteShadowStyle.copy(
@@ -101,18 +94,15 @@ fun BairesEssenceLogin() {
                 )
             }
 
-            // Este Spacer flexible empuja el formulario y el botón de registro hacia abajo.
             Spacer(modifier = Modifier.weight(1f))
 
-            // CONTENIDO DEL MEDIO (Formulario)
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Input Email
                 TextField(
                     value = email,
-                    onValueChange = { email = it },
+                    onValueChange = onEmailChange,
                     placeholder = { Text("Mail", color = Color.LightGray) },
                     singleLine = true,
                     colors = TextFieldDefaults.colors(
@@ -130,10 +120,9 @@ fun BairesEssenceLogin() {
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Input Password
                 TextField(
                     value = password,
-                    onValueChange = { password = it },
+                    onValueChange = onPasswordChange,
                     placeholder = { Text("Password", color = Color.LightGray) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
@@ -150,32 +139,53 @@ fun BairesEssenceLogin() {
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(50.dp))
+                Spacer(modifier = Modifier.height(64.dp))
 
-                // Botón Sign In
                 Button(
-                    onClick = { /* TODO: acción login */ },
+                    onClick = onLoginClick,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9CFF3C)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
                     shape = RoundedCornerShape(25.dp)
                 ) {
-                    Text(text = "Sign In", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(
+                        text = "Sign In",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(64.dp))
+
+                // Botón Google
+                Button(
+                    onClick = onGoogleLoginClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(25.dp)
+                ) {
+                    Text(
+                        text = "Sign In with Google",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
                 }
             }
 
-            // Este Spacer flexible empuja el texto de registro hacia el final.
             Spacer(modifier = Modifier.weight(1f))
 
-            // CONTENIDO INFERIOR (Registro)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = "No tenes cuenta? ", color = Color.White, fontSize = 14.sp)
-                TextButton(onClick = { /* TODO: acción registrar */ }) {
+                TextButton(onClick = onRegisterClick) {
                     Text(
                         text = "Register",
                         color = Color.White,
@@ -188,11 +198,62 @@ fun BairesEssenceLogin() {
     }
 }
 
-// PREVIEW
+// -------------------------
+// Composable real que llama Firebase
+// -------------------------
+@Composable
+fun BairesEssenceLogin() {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+
+    // Detectar Preview
+    val isPreview = LocalInspectionMode.current
+
+    // FirebaseAuth solo si NO es preview
+    val auth: FirebaseAuth? = if (!isPreview) FirebaseAuth.getInstance() else null
+
+    LoginScreenUI(
+        email = email,
+        onEmailChange = { email = it },
+        password = password,
+        onPasswordChange = { password = it },
+        onLoginClick = {
+            // login con email/password usando auth
+            if (auth != null) {
+                auth.signInWithEmailAndPassword(email, password)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            // TODO: ir a home
+                        } else {
+                            // TODO: mostrar error
+                        }
+                    }
+            }
+        },
+        onGoogleLoginClick = {
+            // TODO: login con Google usando auth
+        },
+        onRegisterClick = {
+            // TODO: navegar a registro
+        }
+    )
+}
+
+// -------------------------
+// Preview
+// -------------------------
 @Preview(showBackground = true)
 @Composable
 fun BairesEssenceLoginPreview() {
     BairesEssenceTheme {
-        BairesEssenceLogin()
+        LoginScreenUI(
+            email = "",
+            onEmailChange = {},
+            password = "",
+            onPasswordChange = {},
+            onLoginClick = {},
+            onGoogleLoginClick = {},
+            onRegisterClick = {}
+        )
     }
 }
