@@ -4,7 +4,7 @@ package com.example.bairesessence
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import com.example.bairesessence.core.ui.screens.landing.LandingScreen
+import com.example.bairesessence.core.navigation.AppNavGraph
 import com.example.bairesessence.core.ui.theme.BairesEssenceTheme
 import com.google.firebase.FirebaseApp
 
@@ -15,7 +15,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             BairesEssenceTheme {
-                LandingScreen() // Tu pantalla principal
+                AppNavGraph()
             }
         }
     }

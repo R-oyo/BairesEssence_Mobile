@@ -1,12 +1,22 @@
-// LandingScreen.kt
-package com.example.bairesessence.core.ui.screens.landing // Asegúrate de usar el paquete correcto
+package com.example.bairesessence.core.ui.screens.landing
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,12 +30,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.bairesessence.R // Necesitas importar tu R
-import com.example.bairesessence.core.ui.theme.BairesEssenceTheme // Necesitas importar tu Theme
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
+import com.example.bairesessence.R
+import com.example.bairesessence.core.navigation.Screen
+import com.example.bairesessence.core.ui.theme.BairesEssenceTheme
 
-// Renombrada de WelcomeScreen a LandingScreen
 @Composable
-fun LandingScreen() {
+fun LandingScreen(navController: NavHostController) {
 
     // Definición del TextStyle con Sombra Blanca
     val whiteShadowStyle = TextStyle(
@@ -96,7 +108,7 @@ fun LandingScreen() {
 
             // Botón Sign In
             Button(
-                onClick = { /* Acción Sign In */ },
+                onClick = { navController.navigate(Screen.Login.route) },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8BC34A)),
                 shape = RoundedCornerShape(24.dp),
                 modifier = Modifier
@@ -110,7 +122,7 @@ fun LandingScreen() {
 
             // Botón Register
             Button(
-                onClick = { /* Acción Register */ },
+                onClick = { navController.navigate(Screen.Register.route) },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8BC34A)),
                 shape = RoundedCornerShape(24.dp),
                 modifier = Modifier
@@ -129,6 +141,6 @@ fun LandingScreen() {
 @Composable
 fun LandingScreenPreview() {
     BairesEssenceTheme {
-        LandingScreen()
+        LandingScreen(navController = rememberNavController())
     }
 }

@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">BairesEssence</string>
+    <string name="default_web_client_id" translatable="false">211864182519-mv0fo4gf1juao3g2nt29ngum6glmmnun.apps.googleusercontent.com</string>
 </resources>

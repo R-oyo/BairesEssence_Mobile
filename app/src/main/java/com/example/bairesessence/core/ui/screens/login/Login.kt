@@ -1,13 +1,39 @@
 package com.example.bairesessence.core.ui.screens.login
 
+import android.app.Activity
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -15,6 +41,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -22,14 +50,101 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.navigation.NavHostController
 import com.example.bairesessence.R
+import com.example.bairesessence.core.navigation.Screen
 import com.example.bairesessence.core.ui.theme.BairesEssenceTheme
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
 
-// -------------------------
-// UI pura sin Firebase
-// -------------------------
+@Composable
+fun BairesEssenceLogin(navController: NavHostController) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    val isPreview = LocalInspectionMode.current
+    val context = LocalContext.current
+    val auth: FirebaseAuth? = if (!isPreview) FirebaseAuth.getInstance() else null
+
+    val googleSignInClient = remember {
+        if (!isPreview) {
+            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(context.getString(R.string.default_web_client_id))
+                .requestEmail()
+                .build()
+            GoogleSignIn.getClient(context, gso)
+        } else {
+            null
+        }
+    }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                isLoading = true
+                val account = task.getResult(ApiException::class.java)!!
+                val credential = GoogleAuthProvider.getCredential(account.idToken!!, null)
+                auth?.signInWithCredential(credential)?.addOnCompleteListener { firebaseTask ->
+                    isLoading = false
+                    if (firebaseTask.isSuccessful) {
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Landing.route) { inclusive = true }
+                        }
+                    } else {
+                        errorMessage = firebaseTask.exception?.message ?: "Firebase authentication failed."
+                    }
+                }
+            } catch (e: ApiException) {
+                isLoading = false
+                errorMessage = "Google Sign-In failed: ${e.localizedMessage}"
+                Log.e("GoogleSignIn", "Sign in failed", e)
+            }
+        }
+    }
+
+    LoginScreenUI(
+        email = email,
+        onEmailChange = { email = it },
+        password = password,
+        onPasswordChange = { password = it },
+        onLoginClick = {
+            if (email.isNotBlank() && password.isNotBlank()) {
+                isLoading = true
+                auth?.signInWithEmailAndPassword(email, password)
+                    ?.addOnCompleteListener { task ->
+                        isLoading = false
+                        if (task.isSuccessful) {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(Screen.Landing.route) { inclusive = true }
+                            }
+                        } else {
+                            errorMessage = task.exception?.message ?: "An unknown error occurred."
+                        }
+                    }
+            } else {
+                errorMessage = "Please enter email and password."
+            }
+        },
+        onGoogleLoginClick = {
+            errorMessage = null
+            googleSignInClient?.signInIntent?.let {
+                launcher.launch(it)
+            }
+        },
+        onRegisterClick = { navController.navigate(Screen.Register.route) },
+        errorMessage = errorMessage,
+        isLoading = isLoading
+    )
+}
+
 @Composable
 fun LoginScreenUI(
     email: String,
@@ -38,7 +153,9 @@ fun LoginScreenUI(
     onPasswordChange: (String) -> Unit,
     onLoginClick: () -> Unit,
     onGoogleLoginClick: () -> Unit,
-    onRegisterClick: () -> Unit
+    onRegisterClick: () -> Unit,
+    errorMessage: String?,
+    isLoading: Boolean
 ) {
     val whiteShadowStyle = TextStyle(
         shadow = Shadow(
@@ -49,7 +166,6 @@ fun LoginScreenUI(
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Fondo
         Image(
             painter = painterResource(id = R.drawable.baires_background),
             contentDescription = null,
@@ -57,7 +173,6 @@ fun LoginScreenUI(
             contentScale = ContentScale.Crop
         )
 
-        // Recuadro negro
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -67,7 +182,6 @@ fun LoginScreenUI(
                 .background(Color.Black)
         )
 
-        // Contenido UI
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -100,6 +214,18 @@ fun LoginScreenUI(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.padding(bottom = 16.dp))
+                }
+                
+                errorMessage?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
+
                 TextField(
                     value = email,
                     onValueChange = onEmailChange,
@@ -115,7 +241,8 @@ fun LoginScreenUI(
                         unfocusedTextColor = Color.White,
                         cursorColor = Color.White
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -136,7 +263,8 @@ fun LoginScreenUI(
                         unfocusedTextColor = Color.White,
                         cursorColor = Color.White
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading
                 )
 
                 Spacer(modifier = Modifier.height(64.dp))
@@ -147,7 +275,8 @@ fun LoginScreenUI(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    shape = RoundedCornerShape(25.dp)
+                    shape = RoundedCornerShape(25.dp),
+                    enabled = !isLoading
                 ) {
                     Text(
                         text = "Sign In",
@@ -159,14 +288,14 @@ fun LoginScreenUI(
 
                 Spacer(modifier = Modifier.height(64.dp))
 
-                // Botón Google
                 Button(
                     onClick = onGoogleLoginClick,
                     colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    shape = RoundedCornerShape(25.dp)
+                    shape = RoundedCornerShape(25.dp),
+                    enabled = !isLoading
                 ) {
                     Text(
                         text = "Sign In with Google",
@@ -185,7 +314,7 @@ fun LoginScreenUI(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = "No tenes cuenta? ", color = Color.White, fontSize = 14.sp)
-                TextButton(onClick = onRegisterClick) {
+                TextButton(onClick = onRegisterClick, enabled = !isLoading) {
                     Text(
                         text = "Register",
                         color = Color.White,
@@ -198,50 +327,6 @@ fun LoginScreenUI(
     }
 }
 
-// -------------------------
-// Composable real que llama Firebase
-// -------------------------
-@Composable
-fun BairesEssenceLogin() {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-
-    // Detectar Preview
-    val isPreview = LocalInspectionMode.current
-
-    // FirebaseAuth solo si NO es preview
-    val auth: FirebaseAuth? = if (!isPreview) FirebaseAuth.getInstance() else null
-
-    LoginScreenUI(
-        email = email,
-        onEmailChange = { email = it },
-        password = password,
-        onPasswordChange = { password = it },
-        onLoginClick = {
-            // login con email/password usando auth
-            if (auth != null) {
-                auth.signInWithEmailAndPassword(email, password)
-                    .addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            // TODO: ir a home
-                        } else {
-                            // TODO: mostrar error
-                        }
-                    }
-            }
-        },
-        onGoogleLoginClick = {
-            // TODO: login con Google usando auth
-        },
-        onRegisterClick = {
-            // TODO: navegar a registro
-        }
-    )
-}
-
-// -------------------------
-// Preview
-// -------------------------
 @Preview(showBackground = true)
 @Composable
 fun BairesEssenceLoginPreview() {
@@ -253,7 +338,9 @@ fun BairesEssenceLoginPreview() {
             onPasswordChange = {},
             onLoginClick = {},
             onGoogleLoginClick = {},
-            onRegisterClick = {}
+            onRegisterClick = {},
+            errorMessage = "This is an error message",
+            isLoading = true
         )
     }
 }
