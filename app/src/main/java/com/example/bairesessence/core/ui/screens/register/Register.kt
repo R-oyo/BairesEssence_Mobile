@@ -1,8 +1,5 @@
 package com.example.bairesessence.core.ui.screens.register
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -11,8 +8,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,28 +24,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bairesessence.R
 import com.example.bairesessence.core.ui.theme.BairesEssenceTheme
-
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            BairesEssenceTheme {
-                BairesEssenceRegister()
-            }
-        }
-    }
-}
+import com.google.firebase.auth.FirebaseAuth
+import androidx.compose.ui.platform.LocalInspectionMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BairesEssenceRegister() {
-    // Nuevos estados para los 4 campos
-    var name by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-
-    // Definición del TextStyle con Sombra Blanca
+fun RegisterScreenUI(
+    name: String,
+    onNameChange: (String) -> Unit,
+    email: String,
+    onEmailChange: (String) -> Unit,
+    password: String,
+    onPasswordChange: (String) -> Unit,
+    confirmPassword: String,
+    onConfirmPasswordChange: (String) -> Unit,
+    onRegisterClick: () -> Unit,
+    onLoginClick: () -> Unit
+) {
+    // Estilo de sombra blanca
     val whiteShadowStyle = TextStyle(
         shadow = Shadow(
             color = Color.White,
@@ -62,7 +53,7 @@ fun BairesEssenceRegister() {
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        // 1. FONDO DE IMAGEN
+        // Fondo de imagen
         Image(
             painter = painterResource(id = R.drawable.baires_background),
             contentDescription = null,
@@ -70,7 +61,7 @@ fun BairesEssenceRegister() {
             contentScale = ContentScale.Crop
         )
 
-        // 2. RECUIADRO NEGRO (Layer de fondo del formulario)
+        // Recuadro negro
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -80,23 +71,19 @@ fun BairesEssenceRegister() {
                 .background(Color.Black)
         )
 
-        // 3. CAPA DE CONTENIDO
+        // Contenido
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 32.dp, vertical = 50.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            // LAYOUT CORREGIDO: Usamos Spacers flexibles en lugar de SpaceBetween
             verticalArrangement = Arrangement.Top
         ) {
 
-            // CONTENIDO SUPERIOR (Título e Ícono)
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
-                // Espacio inicial para empujar el contenido desde el borde superior
                 Spacer(modifier = Modifier.height(30.dp))
 
-                // Ícono de ubicación
                 Icon(
                     imageVector = Icons.Filled.LocationOn,
                     contentDescription = "Location Icon",
@@ -106,7 +93,6 @@ fun BairesEssenceRegister() {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Título
                 Text(
                     text = "BAIRES ESSENCE",
                     style = whiteShadowStyle.copy(
@@ -117,40 +103,16 @@ fun BairesEssenceRegister() {
                 )
             }
 
-            // Este Spacer empuja el formulario hacia el centro
             Spacer(modifier = Modifier.weight(1f))
 
-            // --- SECCIÓN CENTRAL: FORMULARIO DE REGISTRO ---
+            // Formulario
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // Input Name
+
                 TextField(
                     value = name,
-                    onValueChange = { name = it },
+                    onValueChange = onNameChange,
                     placeholder = { Text("Name", color = Color.LightGray) },
                     singleLine = true,
-                    // COLORS CORREGIDO
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.White,
-                        unfocusedIndicatorColor = Color.LightGray,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        cursorColor = Color.White
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(16.dp)) // Espacio reducido entre campos
-
-                // Input Email
-                TextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    placeholder = { Text("Mail", color = Color.LightGray) },
-                    singleLine = true,
-                    // COLORS CORREGIDO
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
@@ -166,14 +128,32 @@ fun BairesEssenceRegister() {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Input Password
+                TextField(
+                    value = email,
+                    onValueChange = onEmailChange,
+                    placeholder = { Text("Mail", color = Color.LightGray) },
+                    singleLine = true,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.White,
+                        unfocusedIndicatorColor = Color.LightGray,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = Color.White
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 TextField(
                     value = password,
-                    onValueChange = { password = it },
+                    onValueChange = onPasswordChange,
                     placeholder = { Text("Password", color = Color.LightGray) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
-                    // COLORS CORREGIDO
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
@@ -189,14 +169,12 @@ fun BairesEssenceRegister() {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Input Confirm Password
                 TextField(
                     value = confirmPassword,
-                    onValueChange = { confirmPassword = it },
+                    onValueChange = onConfirmPasswordChange,
                     placeholder = { Text("Confirm Password", color = Color.LightGray) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
-                    // COLORS CORREGIDO
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
@@ -210,34 +188,36 @@ fun BairesEssenceRegister() {
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(30.dp)) // Espacio antes del botón
+                Spacer(modifier = Modifier.height(30.dp))
 
-                // Botón Register
                 Button(
-                    onClick = { /* TODO: acción registro */ },
+                    onClick = onRegisterClick,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9CFF3C)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
                     shape = RoundedCornerShape(25.dp)
                 ) {
-                    Text(text = "Register", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(
+                        text = "Register",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
                 }
-            } // Fin Column Central
+            }
 
-            // Este Spacer empuja el texto de login hacia abajo
             Spacer(modifier = Modifier.weight(1f))
 
-            // CONTENIDO INFERIOR (Login)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = "¿Ya estás registrado? ", color = Color.White, fontSize = 14.sp)
-                TextButton(onClick = { /* TODO: acción login */ }) {
+                TextButton(onClick = onLoginClick) {
                     Text(
-                        text = "Login", // Texto modificado
+                        text = "Login",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
@@ -248,11 +228,67 @@ fun BairesEssenceRegister() {
     }
 }
 
-// PREVIEW para la nueva pantalla
+@Composable
+fun RegisterScreen(
+    onRegisterSuccess: () -> Unit,
+    onGoToLogin: () -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+
+    val isPreview = LocalInspectionMode.current
+    val auth: FirebaseAuth? = if (!isPreview) FirebaseAuth.getInstance() else null
+
+    RegisterScreenUI(
+        name = name,
+        onNameChange = { name = it },
+        email = email,
+        onEmailChange = { email = it },
+        password = password,
+        onPasswordChange = { password = it },
+        confirmPassword = confirmPassword,
+        onConfirmPasswordChange = { confirmPassword = it },
+        onRegisterClick = {
+            if (password != confirmPassword) {
+                // TODO: mostrar error de passwords distintas
+                return@RegisterScreenUI
+            }
+
+            if (auth != null) {
+                auth.createUserWithEmailAndPassword(email, password)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            // TODO: guardar "name" en Firestore más adelante
+                            onRegisterSuccess()
+                        } else {
+                            // TODO: mostrar error de registro
+                        }
+                    }
+            }
+        },
+        onLoginClick = {
+            onGoToLogin()
+        }
+    )
+}
+
 @Preview(showBackground = true)
 @Composable
 fun BairesEssenceRegisterPreview() {
     BairesEssenceTheme {
-        BairesEssenceRegister()
+        RegisterScreenUI(
+            name = "",
+            onNameChange = {},
+            email = "",
+            onEmailChange = {},
+            password = "",
+            onPasswordChange = {},
+            confirmPassword = "",
+            onConfirmPasswordChange = {},
+            onRegisterClick = {},
+            onLoginClick = {}
+        )
     }
 }

@@ -15,6 +15,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -22,7 +23,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalInspectionMode
 import com.example.bairesessence.R
 import com.example.bairesessence.core.ui.theme.BairesEssenceTheme
 import com.google.firebase.auth.FirebaseAuth
@@ -199,10 +199,13 @@ fun LoginScreenUI(
 }
 
 // -------------------------
-// Composable real que llama Firebase
+// Composable que usamos desde Navigation
 // -------------------------
 @Composable
-fun BairesEssenceLogin() {
+fun LoginScreen(
+    onLoginSuccess: () -> Unit,
+    onGoToRegister: () -> Unit
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
@@ -218,29 +221,30 @@ fun BairesEssenceLogin() {
         password = password,
         onPasswordChange = { password = it },
         onLoginClick = {
-            // login con email/password usando auth
             if (auth != null) {
                 auth.signInWithEmailAndPassword(email, password)
                     .addOnCompleteListener { task ->
                         if (task.isSuccessful) {
-                            // TODO: ir a home
+                            // Si el login fue exitoso, avisamos al NavHost
+                            onLoginSuccess()
                         } else {
-                            // TODO: mostrar error
+                            // TODO: manejar error (snackbar, texto, etc.)
                         }
                     }
             }
         },
         onGoogleLoginClick = {
-            // TODO: login con Google usando auth
+            // TODO: implementar login con Google
         },
         onRegisterClick = {
-            // TODO: navegar a registro
+            // Navegar a pantalla de registro
+            onGoToRegister()
         }
     )
 }
 
 // -------------------------
-// Preview
+// Preview SOLO de UI
 // -------------------------
 @Preview(showBackground = true)
 @Composable

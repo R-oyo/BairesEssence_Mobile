@@ -1,5 +1,5 @@
 // LandingScreen.kt
-package com.example.bairesessence.core.ui.screens.landing // Asegúrate de usar el paquete correcto
+package com.example.bairesessence.core.ui.screens.landing
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -20,14 +20,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.bairesessence.R // Necesitas importar tu R
-import com.example.bairesessence.core.ui.theme.BairesEssenceTheme // Necesitas importar tu Theme
+import com.example.bairesessence.R
+import com.example.bairesessence.core.ui.theme.BairesEssenceTheme
 
-// Renombrada de WelcomeScreen a LandingScreen
 @Composable
-fun LandingScreen() {
-
-    // Definición del TextStyle con Sombra Blanca
+fun LandingScreen(
+    onSignInClick: () -> Unit,
+    onRegisterClick: () -> Unit
+) {
+    // Estilo de sombra blanca
     val whiteShadowStyle = TextStyle(
         shadow = Shadow(
             color = Color.White,
@@ -56,11 +57,8 @@ fun LandingScreen() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
-
-            // Espacio inicial para empujar el contenido desde el borde superior
             Spacer(modifier = Modifier.height(80.dp))
 
-            // Ícono de ubicación
             Icon(
                 imageVector = Icons.Filled.LocationOn,
                 contentDescription = "Location Icon",
@@ -70,7 +68,6 @@ fun LandingScreen() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Título con Sombra
             Text(
                 text = "BAIRES ESSENCE",
                 style = whiteShadowStyle.copy(
@@ -82,7 +79,6 @@ fun LandingScreen() {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Texto de bienvenida con Sombra
             Text(
                 text = "Welcome-bienvenido...",
                 style = whiteShadowStyle.copy(
@@ -91,12 +87,11 @@ fun LandingScreen() {
                 )
             )
 
-            // Espaciador flexible que empuja los botones
             Spacer(modifier = Modifier.weight(1f))
 
             // Botón Sign In
             Button(
-                onClick = { /* Acción Sign In */ },
+                onClick = onSignInClick,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8BC34A)),
                 shape = RoundedCornerShape(24.dp),
                 modifier = Modifier
@@ -110,7 +105,7 @@ fun LandingScreen() {
 
             // Botón Register
             Button(
-                onClick = { /* Acción Register */ },
+                onClick = onRegisterClick,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8BC34A)),
                 shape = RoundedCornerShape(24.dp),
                 modifier = Modifier
@@ -125,10 +120,13 @@ fun LandingScreen() {
     }
 }
 
-@Preview
+@Preview(showBackground = true)
 @Composable
 fun LandingScreenPreview() {
     BairesEssenceTheme {
-        LandingScreen()
+        LandingScreen(
+            onSignInClick = {},
+            onRegisterClick = {}
+        )
     }
 }
