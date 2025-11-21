@@ -1,5 +1,8 @@
 package com.example.bairesessence.core.ui.screens.login
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -15,6 +18,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -24,16 +29,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bairesessence.R
 import com.example.bairesessence.core.ui.theme.BairesEssenceTheme
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
 
 // -------------------------
-// UI pura (diseño)
+// UI pura
 // -------------------------
 @Composable
-fun LoginScreenUI(
+private fun LoginScreenUI(
     email: String,
     onEmailChange: (String) -> Unit,
     password: String,
     onPasswordChange: (String) -> Unit,
+    isLoading: Boolean,
+    errorMessage: String?,
     onLoginClick: () -> Unit,
     onGoogleLoginClick: () -> Unit,
     onRegisterClick: () -> Unit
@@ -47,7 +59,6 @@ fun LoginScreenUI(
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Fondo
         Image(
             painter = painterResource(id = R.drawable.baires_background),
             contentDescription = null,
@@ -55,7 +66,6 @@ fun LoginScreenUI(
             contentScale = ContentScale.Crop
         )
 
-        // Recuadro negro
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -65,7 +75,6 @@ fun LoginScreenUI(
                 .background(Color.Black)
         )
 
-        // Contenido UI
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -103,6 +112,7 @@ fun LoginScreenUI(
                     onValueChange = onEmailChange,
                     placeholder = { Text("Mail", color = Color.LightGray) },
                     singleLine = true,
+                    enabled = !isLoading,
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
@@ -124,6 +134,7 @@ fun LoginScreenUI(
                     placeholder = { Text("Password", color = Color.LightGray) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
+                    enabled = !isLoading,
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
@@ -137,28 +148,47 @@ fun LoginScreenUI(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(64.dp))
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = errorMessage,
+                        color = Color.Red,
+                        fontSize = 12.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
                     onClick = onLoginClick,
+                    enabled = !isLoading,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9CFF3C)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
                     shape = RoundedCornerShape(25.dp)
                 ) {
-                    Text(
-                        text = "Sign In",
-                        color = Color.Black,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            color = Color.Black,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    } else {
+                        Text(
+                            text = "Sign In",
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(64.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
                     onClick = onGoogleLoginClick,
+                    enabled = !isLoading,
                     colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -196,48 +226,129 @@ fun LoginScreenUI(
 }
 
 // -------------------------
-// Composable que usa Navigation (sin Firebase por ahora)
+// Lógica con FirebaseAuth + Google
 // -------------------------
 @Composable
 fun LoginScreen(
+    auth: FirebaseAuth,
     onLoginSuccess: () -> Unit,
-    onGoToRegister: () -> Unit
+    onNavigateToRegister: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
+    val isPreview = LocalInspectionMode.current
+    val effectiveAuth = if (isPreview) null else auth
+
+    // Configuración de GoogleSignInClient
+    val googleSignInClient = remember {
+        if (isPreview) {
+            null
+        } else {
+            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(context.getString(R.string.default_web_client_id))
+                .requestEmail()
+                .build()
+            GoogleSignIn.getClient(context, gso)
+        }
+    }
+
+    // Launcher para el intent de Google
+    val googleLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK && !isPreview) {
+                val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                try {
+                    val account = task.getResult(ApiException::class.java)
+                    val credential =
+                        GoogleAuthProvider.getCredential(account.idToken, /* accessToken= */ null)
+
+                    isLoading = true
+                    errorMessage = null
+
+                    effectiveAuth
+                        ?.signInWithCredential(credential)
+                        ?.addOnCompleteListener { firebaseResult ->
+                            isLoading = false
+                            if (firebaseResult.isSuccessful) {
+                                onLoginSuccess()
+                            } else {
+                                errorMessage = firebaseResult.exception?.localizedMessage
+                                    ?: "No se pudo iniciar sesión con Google."
+                            }
+                        }
+                } catch (e: ApiException) {
+                    isLoading = false
+                    errorMessage = "Error con Google (${e.statusCode})."
+                }
+            } else if (!isPreview) {
+                isLoading = false
+                // Si querés que no muestre nada cuando se cancela, podés comentar esta línea:
+                errorMessage = "Inicio de sesión con Google cancelado."
+            }
+        }
+
+    fun doLoginEmail() {
+        if (email.isBlank() || password.isBlank()) {
+            errorMessage = "Ingresá mail y contraseña."
+            return
+        }
+
+        if (effectiveAuth == null) {
+            onLoginSuccess()
+            return
+        }
+
+        isLoading = true
+        errorMessage = null
+
+        effectiveAuth.signInWithEmailAndPassword(email.trim(), password)
+            .addOnCompleteListener { task ->
+                isLoading = false
+                if (task.isSuccessful) {
+                    onLoginSuccess()
+                } else {
+                    errorMessage = task.exception?.localizedMessage
+                        ?: "No se pudo iniciar sesión. Revisá tus datos."
+                }
+            }
+    }
+
+    fun doLoginGoogle() {
+        if (googleSignInClient == null || isPreview) {
+            errorMessage = "Google Sign-In no está disponible en preview."
+            return
+        }
+        isLoading = true
+        errorMessage = null
+        val signInIntent = googleSignInClient.signInIntent
+        googleLauncher.launch(signInIntent)
+    }
 
     LoginScreenUI(
         email = email,
         onEmailChange = { email = it },
         password = password,
         onPasswordChange = { password = it },
-        onLoginClick = {
-            // MODO DESARROLLO:
-            // Ir directo a Home, sin validar credenciales
-            onLoginSuccess()
-        },
-        onGoogleLoginClick = {
-            // Por ahora también lleva directo a Home
-            onLoginSuccess()
-        },
-        onRegisterClick = {
-            onGoToRegister()
-        }
+        isLoading = isLoading,
+        errorMessage = errorMessage,
+        onLoginClick = { doLoginEmail() },
+        onGoogleLoginClick = { doLoginGoogle() },
+        onRegisterClick = onNavigateToRegister
     )
 }
 
 @Preview(showBackground = true)
 @Composable
-fun BairesEssenceLoginPreview() {
+fun LoginScreenPreview() {
     BairesEssenceTheme {
-        LoginScreenUI(
-            email = "",
-            onEmailChange = {},
-            password = "",
-            onPasswordChange = {},
-            onLoginClick = {},
-            onGoogleLoginClick = {},
-            onRegisterClick = {}
+        LoginScreen(
+            auth = FirebaseAuth.getInstance(),
+            onLoginSuccess = {},
+            onNavigateToRegister = {}
         )
     }
 }

@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -18,27 +20,51 @@ import com.example.bairesessence.core.ui.screens.login.LoginScreen
 import com.example.bairesessence.core.ui.screens.register.RegisterScreen
 import com.example.bairesessence.core.ui.theme.BairesEssenceTheme
 import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var auth: FirebaseAuth
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Inicializar Firebase (por si no se hizo aún)
         FirebaseApp.initializeApp(this)
+        auth = FirebaseAuth.getInstance()
 
         setContent {
             BairesEssenceTheme {
-                AppNavHost()
+                val navController = rememberNavController()
+
+                // Si hay usuario logueado -> arrancamos en Home, sino en Landing
+                val startDestination = remember {
+                    if (auth.currentUser != null) {
+                        Screen.Home.route
+                    } else {
+                        Screen.Landing.route
+                    }
+                }
+
+                BairesEssenceNavHost(
+                    navController = navController,
+                    startDestination = startDestination,
+                    auth = auth
+                )
             }
         }
     }
 }
 
 @Composable
-private fun AppNavHost() {
-    val navController = rememberNavController()
-
+private fun BairesEssenceNavHost(
+    navController: NavHostController,
+    startDestination: String,
+    auth: FirebaseAuth
+) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Landing.route
+        startDestination = startDestination
     ) {
         // Landing
         composable(Screen.Landing.route) {
@@ -55,12 +81,14 @@ private fun AppNavHost() {
         // Login
         composable(Screen.Login.route) {
             LoginScreen(
+                auth = auth,
                 onLoginSuccess = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Landing.route) { inclusive = true }
+                        launchSingleTop = true
                     }
                 },
-                onGoToRegister = {
+                onNavigateToRegister = {
                     navController.navigate(Screen.Register.route)
                 }
             )
@@ -69,38 +97,37 @@ private fun AppNavHost() {
         // Register
         composable(Screen.Register.route) {
             RegisterScreen(
+                auth = auth,
                 onRegisterSuccess = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Landing.route) { inclusive = true }
+                        launchSingleTop = true
                     }
                 },
-                onGoToLogin = {
+                onNavigateToLogin = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Landing.route) { saveState = true }
+                        launchSingleTop = true
                     }
                 }
             )
         }
 
-        // Pantallas internas con bottom bar
+        // Home + tabs internas
         composable(Screen.Home.route) {
-            HomeScreen(navController)
+            HomeScreen(navController = navController)
         }
-
         composable(Screen.Itinerary.route) {
-            ItineraryScreen(navController)
+            ItineraryScreen(navController = navController)
         }
-
         composable(Screen.Payments.route) {
-            PaymentMethodsScreen(navController)
+            PaymentMethodsScreen(navController = navController)
         }
-
         composable(Screen.Profile.route) {
-            ProfileScreen(navController)
+            ProfileScreen(navController = navController)
         }
-
         composable(Screen.Guests.route) {
-            GuestsScreen(navController)
+            GuestsScreen(navController = navController)
         }
     }
 }

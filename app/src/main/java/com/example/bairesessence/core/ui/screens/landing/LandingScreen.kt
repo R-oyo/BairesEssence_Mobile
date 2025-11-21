@@ -1,4 +1,3 @@
-// LandingScreen.kt
 package com.example.bairesessence.core.ui.screens.landing
 
 import androidx.compose.foundation.Image
@@ -6,7 +5,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,7 +30,6 @@ fun LandingScreen(
     onSignInClick: () -> Unit,
     onRegisterClick: () -> Unit
 ) {
-    // Estilo de sombra blanca
     val whiteShadowStyle = TextStyle(
         shadow = Shadow(
             color = Color.White,
@@ -38,10 +39,8 @@ fun LandingScreen(
     )
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = Modifier.fillMaxSize()
     ) {
-        // Fondo de imagen
         Image(
             painter = painterResource(id = R.drawable.baires_background),
             contentDescription = null,
@@ -49,7 +48,6 @@ fun LandingScreen(
             contentScale = ContentScale.Crop
         )
 
-        // Contenido
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -89,7 +87,6 @@ fun LandingScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Botón Sign In
             Button(
                 onClick = onSignInClick,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8BC34A)),
@@ -103,7 +100,6 @@ fun LandingScreen(
 
             Spacer(modifier = Modifier.height(64.dp))
 
-            // Botón Register
             Button(
                 onClick = onRegisterClick,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8BC34A)),
@@ -120,7 +116,7 @@ fun LandingScreen(
     }
 }
 
-@Preview(showBackground = true)
+@Preview
 @Composable
 fun LandingScreenPreview() {
     BairesEssenceTheme {

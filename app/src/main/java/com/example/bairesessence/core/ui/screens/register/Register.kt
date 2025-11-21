@@ -15,6 +15,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -24,10 +25,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bairesessence.R
 import com.example.bairesessence.core.ui.theme.BairesEssenceTheme
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.UserProfileChangeRequest
 
+// UI pura
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RegisterScreenUI(
+private fun RegisterScreenUI(
     name: String,
     onNameChange: (String) -> Unit,
     email: String,
@@ -36,6 +40,8 @@ fun RegisterScreenUI(
     onPasswordChange: (String) -> Unit,
     confirmPassword: String,
     onConfirmPasswordChange: (String) -> Unit,
+    isLoading: Boolean,
+    errorMessage: String?,
     onRegisterClick: () -> Unit,
     onLoginClick: () -> Unit
 ) {
@@ -73,7 +79,6 @@ fun RegisterScreenUI(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
-
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Spacer(modifier = Modifier.height(30.dp))
 
@@ -105,6 +110,7 @@ fun RegisterScreenUI(
                     onValueChange = onNameChange,
                     placeholder = { Text("Name", color = Color.LightGray) },
                     singleLine = true,
+                    enabled = !isLoading,
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
@@ -125,6 +131,7 @@ fun RegisterScreenUI(
                     onValueChange = onEmailChange,
                     placeholder = { Text("Mail", color = Color.LightGray) },
                     singleLine = true,
+                    enabled = !isLoading,
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
@@ -146,6 +153,7 @@ fun RegisterScreenUI(
                     placeholder = { Text("Password", color = Color.LightGray) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
+                    enabled = !isLoading,
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
@@ -167,6 +175,7 @@ fun RegisterScreenUI(
                     placeholder = { Text("Confirm Password", color = Color.LightGray) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
+                    enabled = !isLoading,
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
@@ -180,22 +189,40 @@ fun RegisterScreenUI(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = errorMessage,
+                        color = Color.Red,
+                        fontSize = 12.sp
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(30.dp))
 
                 Button(
                     onClick = onRegisterClick,
+                    enabled = !isLoading,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9CFF3C)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
                     shape = RoundedCornerShape(25.dp)
                 ) {
-                    Text(
-                        text = "Register",
-                        color = Color.Black,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            color = Color.Black,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    } else {
+                        Text(
+                            text = "Register",
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                    }
                 }
             }
 
@@ -220,15 +247,67 @@ fun RegisterScreenUI(
     }
 }
 
+// Lógica Firebase
 @Composable
 fun RegisterScreen(
+    auth: FirebaseAuth,
     onRegisterSuccess: () -> Unit,
-    onGoToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val isPreview = LocalInspectionMode.current
+    val effectiveAuth = if (isPreview) null else auth
+
+    fun doRegister() {
+        if (name.isBlank() || email.isBlank() || password.isBlank() || confirmPassword.isBlank()) {
+            errorMessage = "Completá todos los campos."
+            return
+        }
+        if (password != confirmPassword) {
+            errorMessage = "Las contraseñas no coinciden."
+            return
+        }
+        if (password.length < 6) {
+            errorMessage = "La contraseña debe tener al menos 6 caracteres."
+            return
+        }
+
+        if (effectiveAuth == null) {
+            onRegisterSuccess()
+            return
+        }
+
+        isLoading = true
+        errorMessage = null
+
+        effectiveAuth.createUserWithEmailAndPassword(email.trim(), password)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val user = effectiveAuth.currentUser
+                    val profileUpdates = UserProfileChangeRequest.Builder()
+                        .setDisplayName(name.trim())
+                        .build()
+
+                    user?.updateProfile(profileUpdates)?.addOnCompleteListener {
+                        isLoading = false
+                        onRegisterSuccess()
+                    } ?: run {
+                        isLoading = false
+                        onRegisterSuccess()
+                    }
+                } else {
+                    isLoading = false
+                    errorMessage = task.exception?.localizedMessage
+                        ?: "No se pudo crear la cuenta. Probá de nuevo."
+                }
+            }
+    }
 
     RegisterScreenUI(
         name = name,
@@ -239,32 +318,21 @@ fun RegisterScreen(
         onPasswordChange = { password = it },
         confirmPassword = confirmPassword,
         onConfirmPasswordChange = { confirmPassword = it },
-        onRegisterClick = {
-            // MODO DESARROLLO:
-            // No validamos nada, solo navegamos a Home
-            onRegisterSuccess()
-        },
-        onLoginClick = {
-            onGoToLogin()
-        }
+        isLoading = isLoading,
+        errorMessage = errorMessage,
+        onRegisterClick = { doRegister() },
+        onLoginClick = onNavigateToLogin
     )
 }
 
 @Preview(showBackground = true)
 @Composable
-fun BairesEssenceRegisterPreview() {
+fun RegisterScreenPreview() {
     BairesEssenceTheme {
-        RegisterScreenUI(
-            name = "",
-            onNameChange = {},
-            email = "",
-            onEmailChange = {},
-            password = "",
-            onPasswordChange = {},
-            confirmPassword = "",
-            onConfirmPasswordChange = {},
-            onRegisterClick = {},
-            onLoginClick = {}
+        RegisterScreen(
+            auth = FirebaseAuth.getInstance(),
+            onRegisterSuccess = {},
+            onNavigateToLogin = {}
         )
     }
 }
