@@ -24,8 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bairesessence.R
 import com.example.bairesessence.core.ui.theme.BairesEssenceTheme
-import com.google.firebase.auth.FirebaseAuth
-import androidx.compose.ui.platform.LocalInspectionMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,7 +39,6 @@ fun RegisterScreenUI(
     onRegisterClick: () -> Unit,
     onLoginClick: () -> Unit
 ) {
-    // Estilo de sombra blanca
     val whiteShadowStyle = TextStyle(
         shadow = Shadow(
             color = Color.White,
@@ -53,7 +50,6 @@ fun RegisterScreenUI(
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Fondo de imagen
         Image(
             painter = painterResource(id = R.drawable.baires_background),
             contentDescription = null,
@@ -61,7 +57,6 @@ fun RegisterScreenUI(
             contentScale = ContentScale.Crop
         )
 
-        // Recuadro negro
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -71,7 +66,6 @@ fun RegisterScreenUI(
                 .background(Color.Black)
         )
 
-        // Contenido
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -81,7 +75,6 @@ fun RegisterScreenUI(
         ) {
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-
                 Spacer(modifier = Modifier.height(30.dp))
 
                 Icon(
@@ -105,7 +98,6 @@ fun RegisterScreenUI(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Formulario
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
                 TextField(
@@ -238,9 +230,6 @@ fun RegisterScreen(
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
 
-    val isPreview = LocalInspectionMode.current
-    val auth: FirebaseAuth? = if (!isPreview) FirebaseAuth.getInstance() else null
-
     RegisterScreenUI(
         name = name,
         onNameChange = { name = it },
@@ -251,22 +240,9 @@ fun RegisterScreen(
         confirmPassword = confirmPassword,
         onConfirmPasswordChange = { confirmPassword = it },
         onRegisterClick = {
-            if (password != confirmPassword) {
-                // TODO: mostrar error de passwords distintas
-                return@RegisterScreenUI
-            }
-
-            if (auth != null) {
-                auth.createUserWithEmailAndPassword(email, password)
-                    .addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            // TODO: guardar "name" en Firestore más adelante
-                            onRegisterSuccess()
-                        } else {
-                            // TODO: mostrar error de registro
-                        }
-                    }
-            }
+            // MODO DESARROLLO:
+            // No validamos nada, solo navegamos a Home
+            onRegisterSuccess()
         },
         onLoginClick = {
             onGoToLogin()

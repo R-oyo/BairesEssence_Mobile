@@ -15,7 +15,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -25,10 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bairesessence.R
 import com.example.bairesessence.core.ui.theme.BairesEssenceTheme
-import com.google.firebase.auth.FirebaseAuth
 
 // -------------------------
-// UI pura sin Firebase
+// UI pura (diseño)
 // -------------------------
 @Composable
 fun LoginScreenUI(
@@ -159,7 +157,6 @@ fun LoginScreenUI(
 
                 Spacer(modifier = Modifier.height(64.dp))
 
-                // Botón Google
                 Button(
                     onClick = onGoogleLoginClick,
                     colors = ButtonDefaults.buttonColors(containerColor = Color.White),
@@ -199,7 +196,7 @@ fun LoginScreenUI(
 }
 
 // -------------------------
-// Composable que usamos desde Navigation
+// Composable que usa Navigation (sin Firebase por ahora)
 // -------------------------
 @Composable
 fun LoginScreen(
@@ -209,43 +206,26 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    // Detectar Preview
-    val isPreview = LocalInspectionMode.current
-
-    // FirebaseAuth solo si NO es preview
-    val auth: FirebaseAuth? = if (!isPreview) FirebaseAuth.getInstance() else null
-
     LoginScreenUI(
         email = email,
         onEmailChange = { email = it },
         password = password,
         onPasswordChange = { password = it },
         onLoginClick = {
-            if (auth != null) {
-                auth.signInWithEmailAndPassword(email, password)
-                    .addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            // Si el login fue exitoso, avisamos al NavHost
-                            onLoginSuccess()
-                        } else {
-                            // TODO: manejar error (snackbar, texto, etc.)
-                        }
-                    }
-            }
+            // MODO DESARROLLO:
+            // Ir directo a Home, sin validar credenciales
+            onLoginSuccess()
         },
         onGoogleLoginClick = {
-            // TODO: implementar login con Google
+            // Por ahora también lleva directo a Home
+            onLoginSuccess()
         },
         onRegisterClick = {
-            // Navegar a pantalla de registro
             onGoToRegister()
         }
     )
 }
 
-// -------------------------
-// Preview SOLO de UI
-// -------------------------
 @Preview(showBackground = true)
 @Composable
 fun BairesEssenceLoginPreview() {
