@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -20,11 +22,13 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -563,111 +567,154 @@ fun ItineraryScreen(navController: NavHostController) {
 
     AppScaffold(
         navController = navController,
-        currentRoute = Screen.Itinerary.route,
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { startCreate() }
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Agregar actividad")
-            }
-        }
+        currentRoute = Screen.Itinerary.route
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFFF2F2F2))
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            Text(
-                text = "Itinerario de tu día",
-                style = MaterialTheme.typography.titleLarge
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Armá tu día en Buenos Aires combinando nuestras sugerencias con tus propios planes.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.DarkGray
-            )
-
-            if (errorMessage != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = errorMessage!!,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Red
-                )
-            } else if (isLoading) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Cargando itinerario...",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Agregar rápido (presets Baires Essence)",
-                style = MaterialTheme.typography.titleSmall
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
+            // Área scrollable
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                items(presetOptions) { preset ->
-                    PresetChip(
-                        label = preset.title,
-                        onClick = {
-                            // Agregar preset directo a Firestore
-                            if (userId != null) {
-                                firestore
-                                    .collection("users")
-                                    .document(userId)
-                                    .collection("itinerary")
-                                    .add(
-                                        preset.copy(
-                                            id = "",
-                                            time = preset.time.ifBlank { "--:--" }
-                                        )
-                                    )
-                            }
-                        }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            if (!isLoading && activities.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Todavía no agregaste actividades. Usá el botón + para empezar.",
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = "Itinerario de tu día",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(onClick = { startCreate() }) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Agregar actividad"
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Armá tu día en Buenos Aires combinando nuestras sugerencias con tus propios planes.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.DarkGray
+                )
+
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = errorMessage!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Red
+                    )
+                } else if (isLoading) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Cargando itinerario...",
+                        style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                     )
                 }
-            } else {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Agregar rápido (presets Baires Essence)",
+                    style = MaterialTheme.typography.titleSmall
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    activities.forEachIndexed { index, activity ->
-                        ActivityTimelineItem(
-                            activity = activity,
-                            isLast = index == activities.lastIndex,
-                            onEdit = { startEdit(activity) },
-                            onDelete = { deleteActivity(activity) }
+                    items(presetOptions) { preset ->
+                        PresetChip(
+                            label = preset.title,
+                            onClick = {
+                                // Agregar preset directo a Firestore
+                                if (userId != null) {
+                                    firestore
+                                        .collection("users")
+                                        .document(userId)
+                                        .collection("itinerary")
+                                        .add(
+                                            preset.copy(
+                                                id = "",
+                                                time = preset.time.ifBlank { "--:--" }
+                                            )
+                                        )
+                                }
+                            }
                         )
                     }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                if (!isLoading && activities.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Todavía no agregaste actividades. Usá el botón + para empezar.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray
+                        )
+                    }
+                } else {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        activities.forEachIndexed { index, activity ->
+                            ActivityTimelineItem(
+                                activity = activity,
+                                isLast = index == activities.lastIndex,
+                                onEdit = { startEdit(activity) },
+                                onDelete = { deleteActivity(activity) }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // CTA fijo abajo
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Button(
+                    onClick = {
+                        // TODO: acción de reserva (ej. navegación a pantalla de reserva/pagos)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(999.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF9CFF3C),
+                        contentColor = Color.Black
+                    )
+                ) {
+                    Text(
+                        text = "Reservar ahora",
+                        style = MaterialTheme.typography.titleMedium
+                    )
                 }
             }
         }
