@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +33,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -47,11 +50,33 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.bairesessence.R
 import com.example.bairesessence.core.ui.navigation.Screen
-import androidx.compose.material3.ExperimentalMaterial3Api
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
-// -------------------------
+// =======================================================
+// MODELOS
+// =======================================================
+
+/**
+ * Modelo de actividad de itinerario que se guarda en Firestore.
+ * El campo [id] se llena con el ID del documento.
+ */
+data class ItineraryActivity(
+    val id: String = "",
+    val time: String = "",
+    val title: String = "",
+    val description: String = "",
+    val isPreset: Boolean = false
+)
+
+private data class ExperienceItem(
+    val title: String,
+    val subtitle: String
+)
+
+// =======================================================
 // Scaffold reutilizable con bottom bar + FAB opcional
-// -------------------------
+// =======================================================
 @Composable
 private fun AppScaffold(
     navController: NavHostController,
@@ -137,9 +162,9 @@ private fun AppScaffold(
     }
 }
 
-// -------------------------
+// =======================================================
 // HOME
-// -------------------------
+// =======================================================
 @Composable
 fun HomeScreen(navController: NavHostController) {
     AppScaffold(
@@ -292,11 +317,6 @@ private fun FeaturedCityTourCard() {
 // -------------------------
 // Otras experiencias
 // -------------------------
-private data class ExperienceItem(
-    val title: String,
-    val subtitle: String
-)
-
 @Composable
 private fun ExperiencesRow() {
     val items = listOf(
@@ -353,20 +373,47 @@ private fun ExperienceCard(item: ExperienceItem) {
 }
 
 // =======================================================
-// ITINERARIO – timeline interactivo con presets + editar/eliminar
+// ITINERARIO – sincronizado con Firestore
 // =======================================================
-private data class ItineraryActivity(
-    val time: String,
-    val title: String,
-    val description: String,
-    val isPreset: Boolean = false
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ItineraryScreen(navController: NavHostController) {
-    val activities = remember {
-        mutableStateListOf(
+    val auth = FirebaseAuth.getInstance()
+    val firestore = FirebaseFirestore.getInstance()
+    val userId = auth.currentUser?.uid
+
+    // Lista que viene de Firestore (SnapshotStateList)
+    val activities = remember { mutableStateListOf<ItineraryActivity>() }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Presets que el usuario puede agregar rápido
+    val presetOptions = remember {
+        listOf(
+            ItineraryActivity(
+                time = "10:00",
+                title = "Paseo por Recoleta",
+                description = "Cementerio de la Recoleta + cafés y librerías.",
+                isPreset = true
+            ),
+            ItineraryActivity(
+                time = "14:00",
+                title = "Delta del Tigre + Navegación",
+                description = "Salida desde CABA, paseo en lancha por el Delta.",
+                isPreset = true
+            ),
+            ItineraryActivity(
+                time = "20:30",
+                title = "Noche de tango con cena",
+                description = "Show de tango con cena incluida.",
+                isPreset = true
+            )
+        )
+    }
+
+    // Seed inicial (las 2 actividades base)
+    val initialSeed = remember {
+        listOf(
             ItineraryActivity(
                 time = "08:30",
                 title = "Llegada a Ezeiza",
@@ -381,36 +428,60 @@ fun ItineraryScreen(navController: NavHostController) {
             )
         )
     }
+    var hasSeeded by remember { mutableStateOf(false) }
 
-    val presetOptions = listOf(
-        ItineraryActivity(
-            time = "10:00",
-            title = "Paseo por Recoleta",
-            description = "Cementerio de la Recoleta + cafés y librerías.",
-            isPreset = true
-        ),
-        ItineraryActivity(
-            time = "14:00",
-            title = "Delta del Tigre + Navegación",
-            description = "Salida desde CABA, paseo en lancha por el Delta.",
-            isPreset = true
-        ),
-        ItineraryActivity(
-            time = "20:30",
-            title = "Noche de tango con cena",
-            description = "Show de tango con cena incluida.",
-            isPreset = true
-        )
-    )
+    // Escucha en tiempo real de Firestore
+    DisposableEffect(userId) {
+        if (userId == null) {
+            isLoading = false
+            errorMessage = "Iniciá sesión para guardar tu itinerario."
+            onDispose { }
+        } else {
+            val ref = firestore
+                .collection("users")
+                .document(userId)
+                .collection("itinerary")
 
+            val registration = ref.addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    errorMessage = "Error al cargar itinerario."
+                    isLoading = false
+                    return@addSnapshotListener
+                }
+
+                val docs = snapshot?.documents ?: emptyList()
+
+                if (docs.isEmpty() && !hasSeeded) {
+                    // Primer ingreso del usuario: sembramos actividades iniciales
+                    hasSeeded = true
+                    initialSeed.forEach { act ->
+                        ref.add(act)
+                    }
+                } else {
+                    val newList = docs.mapNotNull { doc ->
+                        doc.toObject(ItineraryActivity::class.java)?.copy(id = doc.id)
+                    }.sortedBy { it.time }
+
+                    activities.clear()
+                    activities.addAll(newList)
+
+                    isLoading = false
+                    errorMessage = null
+                }
+            }
+
+            onDispose { registration.remove() }
+        }
+    }
+
+    // Estados para el diálogo agregar/editar
     var showDialog by remember { mutableStateOf(false) }
-    var editingIndex by remember { mutableStateOf<Int?>(null) }
+    var editingActivity by remember { mutableStateOf<ItineraryActivity?>(null) }
 
     var time by remember { mutableStateOf("") }
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
 
-    // Estado del dropdown
     var dropdownExpanded by remember { mutableStateOf(false) }
     var selectedPresetLabel by remember { mutableStateOf("Actividad personalizada") }
 
@@ -418,7 +489,7 @@ fun ItineraryScreen(navController: NavHostController) {
         time = ""
         title = ""
         description = ""
-        editingIndex = null
+        editingActivity = null
         selectedPresetLabel = "Actividad personalizada"
         dropdownExpanded = false
     }
@@ -428,17 +499,66 @@ fun ItineraryScreen(navController: NavHostController) {
         showDialog = true
     }
 
-    fun startEdit(index: Int) {
-        val act = activities[index]
-        time = act.time
-        title = act.title
-        description = act.description
-        editingIndex = index
+    fun startEdit(activity: ItineraryActivity) {
+        editingActivity = activity
+        time = activity.time
+        title = activity.title
+        description = activity.description
 
-        val presetMatch = presetOptions.firstOrNull { it.title == act.title }
+        val presetMatch = presetOptions.firstOrNull { it.title == activity.title }
         selectedPresetLabel = presetMatch?.title ?: "Actividad personalizada"
 
         showDialog = true
+    }
+
+    fun saveActivity() {
+        if (userId == null) return
+
+        val ref = firestore
+            .collection("users")
+            .document(userId)
+            .collection("itinerary")
+
+        // Si viene de preset y el usuario no tocó el título, rellenamos
+        if (selectedPresetLabel != "Actividad personalizada" && title.isBlank()) {
+            val preset = presetOptions.firstOrNull { it.title == selectedPresetLabel }
+            if (preset != null) {
+                title = preset.title
+                description = preset.description
+            }
+        }
+
+        val finalTitle = if (title.isBlank()) "Actividad" else title
+        val finalDescription = description
+        val finalIsPreset = selectedPresetLabel != "Actividad personalizada"
+        val finalTime = if (time.isBlank()) "--:--" else time
+
+        val currentId = editingActivity?.id
+        val activity = ItineraryActivity(
+            id = currentId ?: "",
+            time = finalTime,
+            title = finalTitle,
+            description = finalDescription,
+            isPreset = finalIsPreset
+        )
+
+        if (currentId.isNullOrBlank()) {
+            // Nueva actividad
+            ref.add(activity)
+        } else {
+            // Actualizar existente
+            ref.document(currentId).set(activity)
+        }
+    }
+
+    fun deleteActivity(activity: ItineraryActivity) {
+        if (userId == null || activity.id.isBlank()) return
+        firestore
+            .collection("users")
+            .document(userId)
+            .collection("itinerary")
+            .document(activity.id)
+            .delete()
     }
 
     AppScaffold(
@@ -472,6 +592,22 @@ fun ItineraryScreen(navController: NavHostController) {
                 color = Color.DarkGray
             )
 
+            if (errorMessage != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = errorMessage!!,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Red
+                )
+            } else if (isLoading) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Cargando itinerario...",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
@@ -488,16 +624,28 @@ fun ItineraryScreen(navController: NavHostController) {
                 items(presetOptions) { preset ->
                     PresetChip(
                         label = preset.title,
-                        onClick = { activities.add(preset) }
+                        onClick = {
+                            // Agregar preset directo a Firestore
+                            if (userId != null) {
+                                firestore
+                                    .collection("users")
+                                    .document(userId)
+                                    .collection("itinerary")
+                                    .add(
+                                        preset.copy(
+                                            id = "",
+                                            time = preset.time.ifBlank { "--:--" }
+                                        )
+                                    )
+                            }
+                        }
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            val sortedActivities = activities.sortedBy { it.time }
-
-            if (sortedActivities.isEmpty()) {
+            if (!isLoading && activities.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -512,13 +660,12 @@ fun ItineraryScreen(navController: NavHostController) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    sortedActivities.forEachIndexed { visualIndex, activity ->
-                        val realIndex = activities.indexOf(activity)
+                    activities.forEachIndexed { index, activity ->
                         ActivityTimelineItem(
                             activity = activity,
-                            isLast = visualIndex == sortedActivities.lastIndex,
-                            onEdit = { if (realIndex >= 0) startEdit(realIndex) },
-                            onDelete = { if (realIndex >= 0) activities.removeAt(realIndex) }
+                            isLast = index == activities.lastIndex,
+                            onEdit = { startEdit(activity) },
+                            onDelete = { deleteActivity(activity) }
                         )
                     }
                 }
@@ -534,7 +681,7 @@ fun ItineraryScreen(navController: NavHostController) {
             },
             title = {
                 Text(
-                    text = if (editingIndex == null)
+                    text = if (editingActivity == null)
                         "Agregar actividad"
                     else
                         "Editar actividad"
@@ -639,42 +786,7 @@ fun ItineraryScreen(navController: NavHostController) {
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (title.isNotBlank() || selectedPresetLabel != "Actividad personalizada") {
-                            if (selectedPresetLabel != "Actividad personalizada" &&
-                                title.isBlank()
-                            ) {
-                                val preset = presetOptions.firstOrNull {
-                                    it.title == selectedPresetLabel
-                                }
-                                if (preset != null) {
-                                    title = preset.title
-                                    description = preset.description
-                                }
-                            }
-
-                            val finalTitle = if (title.isBlank()) "Actividad" else title
-                            val finalDescription = description
-                            val finalIsPreset = selectedPresetLabel != "Actividad personalizada"
-
-                            if (editingIndex == null) {
-                                activities.add(
-                                    ItineraryActivity(
-                                        time = if (time.isBlank()) "--:--" else time,
-                                        title = finalTitle,
-                                        description = finalDescription,
-                                        isPreset = finalIsPreset
-                                    )
-                                )
-                            } else {
-                                val idx = editingIndex!!
-                                activities[idx] = activities[idx].copy(
-                                    time = if (time.isBlank()) "--:--" else time,
-                                    title = finalTitle,
-                                    description = finalDescription,
-                                    isPreset = finalIsPreset
-                                )
-                            }
-                        }
+                        saveActivity()
                         showDialog = false
                         resetForm()
                     }
@@ -791,9 +903,9 @@ private fun ActivityTimelineItem(
     }
 }
 
-// -------------------------
-// Resto de pestañas (simple)
-// -------------------------
+// =======================================================
+// Resto de pestañas (placeholder)
+// =======================================================
 @Composable
 fun PaymentMethodsScreen(navController: NavHostController) {
     AppScaffold(
