@@ -10,11 +10,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.bairesessence.core.ui.navigation.Screen
-import com.example.bairesessence.core.ui.screens.home.GuestsScreen
+import com.example.bairesessence.core.ui.screens.guests.GuestsScreen
 import com.example.bairesessence.core.ui.screens.home.HomeScreen
 import com.example.bairesessence.core.ui.screens.home.ItineraryScreen
-import com.example.bairesessence.core.ui.screens.home.PaymentMethodsScreen
-import com.example.bairesessence.core.ui.screens.home.ProfileScreen
+import com.example.bairesessence.core.ui.screens.pagos.PaymentMethodsScreen
+import com.example.bairesessence.core.ui.screens.perfil.ProfileScreen
 import com.example.bairesessence.core.ui.screens.landing.LandingScreen
 import com.example.bairesessence.core.ui.screens.login.LoginScreen
 import com.example.bairesessence.core.ui.screens.register.RegisterScreen

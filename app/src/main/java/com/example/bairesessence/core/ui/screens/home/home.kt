@@ -1,17 +1,18 @@
 package com.example.bairesessence.core.ui.screens.home
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -27,8 +28,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -48,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
@@ -55,16 +57,16 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.bairesessence.R
 import com.example.bairesessence.core.ui.navigation.Screen
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import java.net.URLEncoder
+
+private const val WHATSAPP_PHONE = "5491171284739"
 
 // =======================================================
 // MODELOS
 // =======================================================
 
-/**
- * Modelo de actividad de itinerario que se guarda en Firestore.
- * El campo [id] se llena con el ID del documento.
- */
 data class ItineraryActivity(
     val id: String = "",
     val time: String = "",
@@ -79,10 +81,11 @@ private data class ExperienceItem(
 )
 
 // =======================================================
-// Scaffold reutilizable con bottom bar + FAB opcional
+// Scaffold reutilizable con bottom bar + FAB
 // =======================================================
+
 @Composable
-private fun AppScaffold(
+fun AppScaffold(
     navController: NavHostController,
     currentRoute: String,
     floatingActionButton: (@Composable () -> Unit)? = null,
@@ -123,22 +126,18 @@ private fun AppScaffold(
                                     Icons.Default.CalendarMonth,
                                     contentDescription = "Itinerario"
                                 )
-
                                 Screen.Payments -> Icon(
                                     Icons.Default.CreditCard,
                                     contentDescription = "Pagos"
                                 )
-
                                 Screen.Profile -> Icon(
                                     Icons.Default.Person,
                                     contentDescription = "Perfil"
                                 )
-
                                 Screen.Guests -> Icon(
                                     Icons.Default.GroupAdd,
                                     contentDescription = "Invitados"
                                 )
-
                                 else -> {}
                             }
                         },
@@ -169,6 +168,7 @@ private fun AppScaffold(
 // =======================================================
 // HOME
 // =======================================================
+
 @Composable
 fun HomeScreen(navController: NavHostController) {
     AppScaffold(
@@ -321,6 +321,7 @@ private fun FeaturedCityTourCard() {
 // -------------------------
 // Otras experiencias
 // -------------------------
+
 @Composable
 private fun ExperiencesRow() {
     val items = listOf(
@@ -378,10 +379,13 @@ private fun ExperienceCard(item: ExperienceItem) {
 
 // =======================================================
 // ITINERARIO – sincronizado con Firestore
+// + selección de acompañantes + popup de confirmación
 // =======================================================
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ItineraryScreen(navController: NavHostController) {
+    val context = LocalContext.current
     val auth = FirebaseAuth.getInstance()
     val firestore = FirebaseFirestore.getInstance()
     val userId = auth.currentUser?.uid
@@ -390,6 +394,7 @@ fun ItineraryScreen(navController: NavHostController) {
     val activities = remember { mutableStateListOf<ItineraryActivity>() }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isBooking by remember { mutableStateOf(false) }
 
     // Presets que el usuario puede agregar rápido
     val presetOptions = remember {
@@ -478,7 +483,7 @@ fun ItineraryScreen(navController: NavHostController) {
         }
     }
 
-    // Estados para el diálogo agregar/editar
+    // Estados para el diálogo agregar/editar actividad
     var showDialog by remember { mutableStateOf(false) }
     var editingActivity by remember { mutableStateOf<ItineraryActivity?>(null) }
 
@@ -488,6 +493,11 @@ fun ItineraryScreen(navController: NavHostController) {
 
     var dropdownExpanded by remember { mutableStateOf(false) }
     var selectedPresetLabel by remember { mutableStateOf("Actividad personalizada") }
+
+    // -------- Reserva: acompañantes + popup confirmación --------
+    var showPassengersDialog by remember { mutableStateOf(false) }
+    var companionsInput by remember { mutableStateOf("0") }
+    var showReservationConfirmation by remember { mutableStateOf(false) }
 
     fun resetForm() {
         time = ""
@@ -565,39 +575,130 @@ fun ItineraryScreen(navController: NavHostController) {
             .delete()
     }
 
+    fun openWhatsAppWithItinerary(
+        reservationId: String,
+        companions: Int,
+        totalPassengers: Int
+    ) {
+        val userEmail = auth.currentUser?.email ?: "sin-email"
+
+        val message = buildString {
+            append("Nueva reserva desde la app Baires Essence.\n\n")
+            append("Reserva ID: $reservationId\n")
+            append("Email del titular: $userEmail\n")
+            append("Pasajeros: $totalPassengers (titular + $companions acompañantes)\n\n")
+            append("Itinerario propuesto:\n")
+            activities.forEach { act ->
+                append("• ${act.time} - ${act.title}\n")
+                if (act.description.isNotBlank()) {
+                    append("  ${act.description}\n")
+                }
+            }
+        }
+
+        val encoded = URLEncoder.encode(message, "UTF-8")
+        val url = "https://wa.me/$WHATSAPP_PHONE?text=$encoded"
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+
+        try {
+            intent.setPackage("com.whatsapp")
+            context.startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            context.startActivity(browserIntent)
+        }
+    }
+
+    fun createReservation(companions: Int) {
+        if (userId == null) {
+            errorMessage = "Iniciá sesión para poder reservar."
+            return
+        }
+        if (activities.isEmpty()) {
+            errorMessage = "Agregá al menos una actividad antes de reservar."
+            return
+        }
+
+        isBooking = true
+        errorMessage = null
+
+        val userEmail = auth.currentUser?.email ?: ""
+        val totalPassengers = 1 + companions
+
+        val reservationData = hashMapOf(
+            "userId" to userId,
+            "userEmail" to userEmail,
+            "timestamp" to FieldValue.serverTimestamp(),
+            "estado" to "pendiente",
+            "companions" to companions,
+            "totalPassengers" to totalPassengers,
+            "actividades" to activities.map { act ->
+                mapOf(
+                    "time" to act.time,
+                    "title" to act.title,
+                    "description" to act.description,
+                    "isPreset" to act.isPreset
+                )
+            }
+        )
+
+        firestore.collection("reservas")
+            .add(reservationData)
+            .addOnSuccessListener { doc ->
+                isBooking = false
+                showReservationConfirmation = true
+                openWhatsAppWithItinerary(
+                    reservationId = doc.id,
+                    companions = companions,
+                    totalPassengers = totalPassengers
+                )
+            }
+            .addOnFailureListener {
+                isBooking = false
+                errorMessage = "No se pudo crear la reserva. Intentá de nuevo."
+            }
+    }
+
+    fun onReserveClick() {
+        if (userId == null) {
+            errorMessage = "Iniciá sesión para poder reservar."
+            return
+        }
+        if (activities.isEmpty()) {
+            errorMessage = "Agregá al menos una actividad antes de reservar."
+            return
+        }
+        errorMessage = null
+        companionsInput = "0"
+        showPassengersDialog = true
+    }
+
     AppScaffold(
         navController = navController,
-        currentRoute = Screen.Itinerary.route
+        currentRoute = Screen.Itinerary.route,
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { startCreate() }
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Agregar actividad")
+            }
+        }
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFFF2F2F2))
                 .padding(innerPadding)
         ) {
-            // Área scrollable
             Column(
                 modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
+                    .fillMaxSize()
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Itinerario de tu día",
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = { startCreate() }) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Agregar actividad"
-                        )
-                    }
-                }
+                Text(
+                    text = "Itinerario de tu día",
+                    style = MaterialTheme.typography.titleLarge
+                )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -640,7 +741,6 @@ fun ItineraryScreen(navController: NavHostController) {
                         PresetChip(
                             label = preset.title,
                             onClick = {
-                                // Agregar preset directo a Firestore
                                 if (userId != null) {
                                     firestore
                                         .collection("users")
@@ -662,9 +762,7 @@ fun ItineraryScreen(navController: NavHostController) {
 
                 if (!isLoading && activities.isEmpty()) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 32.dp),
+                        modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -674,10 +772,14 @@ fun ItineraryScreen(navController: NavHostController) {
                         )
                     }
                 } else {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(bottom = 96.dp) // espacio para el botón
                     ) {
-                        activities.forEachIndexed { index, activity ->
+                        items(activities.size) { index ->
+                            val activity = activities[index]
                             ActivityTimelineItem(
                                 activity = activity,
                                 isLast = index == activities.lastIndex,
@@ -687,21 +789,17 @@ fun ItineraryScreen(navController: NavHostController) {
                         }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // CTA fijo abajo
+            // Botón "Reservar ahora" fijo abajo
             Box(
                 modifier = Modifier
+                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                contentAlignment = Alignment.Center
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
             ) {
                 Button(
-                    onClick = {
-                        // TODO: acción de reserva (ej. navegación a pantalla de reserva/pagos)
-                    },
+                    onClick = { if (!isBooking) onReserveClick() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
@@ -709,10 +807,11 @@ fun ItineraryScreen(navController: NavHostController) {
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF9CFF3C),
                         contentColor = Color.Black
-                    )
+                    ),
+                    enabled = !isBooking
                 ) {
                     Text(
-                        text = "Reservar ahora",
+                        text = if (isBooking) "Enviando reserva..." else "Reservar ahora",
                         style = MaterialTheme.typography.titleMedium
                     )
                 }
@@ -720,6 +819,85 @@ fun ItineraryScreen(navController: NavHostController) {
         }
     }
 
+    // Diálogo para cantidad de acompañantes
+    if (showPassengersDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!isBooking) {
+                    showPassengersDialog = false
+                }
+            },
+            title = {
+                Text("¿Cuántos acompañantes viajan con vos?")
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Podés poner 0 si viajás solo.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = companionsInput,
+                        onValueChange = { new ->
+                            if (new.all { it.isDigit() } && new.length <= 2) {
+                                companionsInput = new
+                            }
+                        },
+                        label = { Text("Cantidad de acompañantes") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val companions = companionsInput.toIntOrNull() ?: 0
+                        showPassengersDialog = false
+                        createReservation(companions)
+                    },
+                    enabled = companionsInput.toIntOrNull() != null && !isBooking
+                ) {
+                    Text("Confirmar reserva")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        if (!isBooking) {
+                            showPassengersDialog = false
+                        }
+                    }
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    // Popup de confirmación de reserva
+    if (showReservationConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showReservationConfirmation = false },
+            title = {
+                Text("Reserva enviada")
+            },
+            text = {
+                Text(
+                    "Tu reserva fue creada correctamente y se envió un mensaje por WhatsApp a Baires Essence. " +
+                            "Nos vamos a contactar con vos para confirmar los detalles."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showReservationConfirmation = false }) {
+                    Text("Aceptar")
+                }
+            }
+        )
+    }
+
+    // Diálogo agregar / editar actividad
     if (showDialog) {
         AlertDialog(
             onDismissRequest = {
@@ -736,7 +914,7 @@ fun ItineraryScreen(navController: NavHostController) {
             },
             text = {
                 Column {
-                    // ---------- Campo "Servicio sugerido" con dropdown propio ----------
+                    // Campo "Servicio sugerido" con dropdown
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -855,6 +1033,10 @@ fun ItineraryScreen(navController: NavHostController) {
     }
 }
 
+// =======================================================
+// COMPONENTES AUXILIARES
+// =======================================================
+
 @Composable
 private fun PresetChip(label: String, onClick: () -> Unit) {
     Box(
@@ -946,69 +1128,6 @@ private fun ActivityTimelineItem(
                     Text("Eliminar")
                 }
             }
-        }
-    }
-}
-
-// =======================================================
-// Resto de pestañas (placeholder)
-// =======================================================
-@Composable
-fun PaymentMethodsScreen(navController: NavHostController) {
-    AppScaffold(
-        navController = navController,
-        currentRoute = Screen.Payments.route
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "Métodos de pago (tarjeta, efectivo, transferencias)",
-                style = MaterialTheme.typography.bodyLarge
-            )
-        }
-    }
-}
-
-@Composable
-fun ProfileScreen(navController: NavHostController) {
-    AppScaffold(
-        navController = navController,
-        currentRoute = Screen.Profile.route
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "Perfil del usuario (nombre, preferencias, idioma, etc.)",
-                style = MaterialTheme.typography.bodyLarge
-            )
-        }
-    }
-}
-
-@Composable
-fun GuestsScreen(navController: NavHostController) {
-    AppScaffold(
-        navController = navController,
-        currentRoute = Screen.Guests.route
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "Invitados al viaje (agregar acompañantes)",
-                style = MaterialTheme.typography.bodyLarge
-            )
         }
     }
 }
