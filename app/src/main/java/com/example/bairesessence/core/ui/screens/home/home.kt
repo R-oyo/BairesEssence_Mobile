@@ -7,7 +7,18 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -63,10 +74,6 @@ import java.net.URLEncoder
 
 private const val WHATSAPP_PHONE = "5491171284739"
 
-// =======================================================
-// MODELOS
-// =======================================================
-
 data class ItineraryActivity(
     val id: String = "",
     val time: String = "",
@@ -83,7 +90,6 @@ private data class ExperienceItem(
 // =======================================================
 // Scaffold reutilizable con bottom bar + FAB
 // =======================================================
-
 @Composable
 fun AppScaffold(
     navController: NavHostController,
@@ -126,18 +132,22 @@ fun AppScaffold(
                                     Icons.Default.CalendarMonth,
                                     contentDescription = "Itinerario"
                                 )
+
                                 Screen.Payments -> Icon(
                                     Icons.Default.CreditCard,
                                     contentDescription = "Pagos"
                                 )
+
                                 Screen.Profile -> Icon(
                                     Icons.Default.Person,
                                     contentDescription = "Perfil"
                                 )
+
                                 Screen.Guests -> Icon(
                                     Icons.Default.GroupAdd,
                                     contentDescription = "Invitados"
                                 )
+
                                 else -> {}
                             }
                         },
@@ -168,7 +178,6 @@ fun AppScaffold(
 // =======================================================
 // HOME
 // =======================================================
-
 @Composable
 fun HomeScreen(navController: NavHostController) {
     AppScaffold(
@@ -321,7 +330,6 @@ private fun FeaturedCityTourCard() {
 // -------------------------
 // Otras experiencias
 // -------------------------
-
 @Composable
 private fun ExperiencesRow() {
     val items = listOf(
@@ -378,10 +386,8 @@ private fun ExperienceCard(item: ExperienceItem) {
 }
 
 // =======================================================
-// ITINERARIO – sincronizado con Firestore
-// + selección de acompañantes + popup de confirmación
+// ITINERARIO – sincronizado con Firestore + acompañantes
 // =======================================================
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ItineraryScreen(navController: NavHostController) {
@@ -1033,10 +1039,6 @@ fun ItineraryScreen(navController: NavHostController) {
     }
 }
 
-// =======================================================
-// COMPONENTES AUXILIARES
-// =======================================================
-
 @Composable
 private fun PresetChip(label: String, onClick: () -> Unit) {
     Box(
@@ -1128,6 +1130,49 @@ private fun ActivityTimelineItem(
                     Text("Eliminar")
                 }
             }
+        }
+    }
+}
+
+// =======================================================
+// Resto de pestañas (placeholder simples)
+// =======================================================
+@Composable
+fun PaymentMethodsScreen(navController: NavHostController) {
+    AppScaffold(
+        navController = navController,
+        currentRoute = Screen.Payments.route
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Métodos de pago (tarjeta, efectivo, transferencias)",
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
+    }
+}
+
+@Composable
+fun GuestsScreen(navController: NavHostController) {
+    AppScaffold(
+        navController = navController,
+        currentRoute = Screen.Guests.route
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Invitados al viaje (agregar acompañantes)",
+                style = MaterialTheme.typography.bodyLarge
+            )
         }
     }
 }
