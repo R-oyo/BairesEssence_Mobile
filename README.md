@@ -1,125 +1,123 @@
 # Baires Essence — Mobile App (Turistas)
 
-La aplicación móvil de **Baires Essence** es la herramienta principal para los turistas que desean explorar, descubrir y reservar experiencias auténticas en la Ciudad de Buenos Aires.
-Está desarrollada en **Kotlin** utilizando **Android Studio**, Firebase y Google Maps API.
+La aplicación móvil de **Baires Essence** es la plataforma principal donde los turistas descubren, reservan y gestionan experiencias turísticas en Buenos Aires.
+Está desarrollada en **Android Studio (Java/Kotlin)** y funciona conectada a Firebase para autenticación, gestión de datos y reservas en tiempo real.
 
 ---
 
-## 📱 Características Principales
+## 🚀 Características Principales
 
-* Exploración de experiencias turísticas con información detallada.
-* Búsqueda filtrada por categorías, zonas y tipo de actividad.
-* Sistema de **Reserva transaccional (RF03)** con validación de disponibilidad en tiempo real.
-* Mapa interactivo integrado mediante **Google Maps API**.
-* Inicio de sesión con **Firebase Auth (Google OAuth)**.
-* Acceso al historial de reservas.
-* Compatible con **Android 10 o superior (RNF04)**.
+* Exploración completa de experiencias turísticas en Buenos Aires.
+* Sistema de reservas con conexión en vivo a Firestore.
+* Pantalla de detalle con precio, descripción, fotos y disponibilidad.
+* Autenticación mediante **Firebase Auth (Google OAuth)**.
+* Sección de perfil del usuario con reservas activas.
+* Formulario de contacto para consultas.
+* Carga dinámica de imágenes desde Firebase Storage.
 
 ---
 
 ## 🏗️ Arquitectura Técnica
 
-* **Kotlin 100%**
-* **Android Studio (última versión estable)**.
-* **Arquitectura recomendada:**
+### 🧱 Android Studio
 
-  * MVVM + LiveData / StateFlow
-  * ViewModels para manejo del estado
-  * Repositorios conectados a Firebase
-* **Firebase (modular)**
+Proyecto nativo con estructura modular adaptable a Java o Kotlin.
 
-  * Firestore (lectura/escritura y sincronización en tiempo real)
-  * Firebase Auth (Google OAuth)
-* **Google Maps SDK for Android** para geolocalización.
-* **Material Design 3** para una UI moderna y consistente.
+### 🔥 Firebase Modular (v9+)
+
+* **Auth** → Login con Google, manejo de sesiones y persistencia local.
+* **Firestore** → Colecciones de experiencias, reservas y usuarios.
+* **Storage** → Imágenes de experiencias y multimedia.
+
+### 🧭 Navegación
+
+* Actividades y Fragments organizados por vistas.
+* Patrón MVVM opcional para mantener bajo acoplamiento.
 
 ---
 
-## 📦 Instalación y Ejecución del Proyecto
+## 📦 Instalación y Configuración
 
-Cloná el repositorio:
+1. Clonar el repositorio del proyecto:
 
 ```bash
-git clone https://github.com/R-oyo/BairesEssence_Mobile
-cd BairesEssence_Mobile
+git clone https://github.com/GereeOK/proyecto-agencia
 ```
 
-Abrí el proyecto en **Android Studio**:
+2. Abrir el directorio del proyecto en **Android Studio**.
 
-1. Abrir *Android Studio > Open Project*
-2. Seleccionar la carpeta `BairesEssence_Mobile`
-3. Esperar a que Gradle sincronice las dependencias automáticamente
-4. Ejecutar la app con **Run ▶** en un emulador o dispositivo físico Android
+3. Configurar Firebase (automáticamente mediante Firebase Assistant o manualmente).
 
----
+4. Añadir el archivo `google-services.json` en:
 
-## 📱 Requisitos del Sistema
-
-* **Android 10 (API 29)** o superior — *obligatorio por RNF04*
-* Google Play Services actualizado
-* API key válida para Google Maps
-
----
-
-## 🗂️ Estructura del Proyecto
-
-```bash
+```
 /app
- ├── java/com/bairesessence/       # Código principal (Kotlin)
- │     ├── ui/                      # Activities, Fragments, ViewModels
- │     ├── data/                    # Repositorios y modelos
- │     ├── firebase/                # Integración Firebase (Auth/Firestore)
- │     └── utils/                   # Helpers, validaciones, constantes
- ├── res/                           # Layouts XML, drawables, estilos
- └── AndroidManifest.xml            # Permisos, providers y configuración general
 ```
 
 ---
 
-## 🔐 Configuración de Firebase (Obligatoria)
+## 📚 Dependencias Principales (build.gradle)
 
-Colocar el archivo **`google-services.json`** en:
+```gradle
+implementation 'com.google.firebase:firebase-auth'
+implementation 'com.google.firebase:firebase-firestore'
+implementation 'com.google.firebase:firebase-storage'
+implementation 'com.google.android.material:material:1.12.0'
+implementation 'androidx.recyclerview:recyclerview:1.3.2'
+implementation 'androidx.cardview:cardview:1.0.0'
+```
+
+---
+
+## 🧰 Estructura del Proyecto
+
+```
+/app/src/main/java/com/bairesessence
+ ├── adapters/           # Adaptadores para listas (RecyclerView)
+ ├── models/             # Clases de datos (Experiencia, Usuario, Reserva)
+ ├── ui/
+ │   ├── home/           # Lista de experiencias
+ │   ├── detail/         # Detalle de experiencia
+ │   ├── profile/        # Perfil del usuario
+ │   └── auth/           # Pantalla de login (Google)
+ ├── utils/              # Helpers, formateadores, validaciones
+ └── MainActivity.java   # Control principal de navegación
+```
+
+---
+
+## 🎨 Diseño UI
+
+* Basado en Material Design 3 (MD3).
+* Uso de `CardView`, `RecyclerView`, `ConstraintLayout` y `BottomNavigationView`.
+* Paleta moderna y minimalista orientada al sector turístico.
+
+---
+
+## 🔐 Variables de Entorno (Firebase)
+
+No se usan `.env` en Android, sino que la configuración está en:
 
 ```
 app/google-services.json
 ```
 
-Sin este archivo, la app **no podrá compilar ni autenticarse**.
+Incluye:
+
+* api_key
+* auth_domain
+* project_id
+* storage_bucket
+* messaging_sender_id
+* app_id
 
 ---
 
-## 🌍 Configuración de Google Maps API
+## ✔️ Funcionalidades Integradas con la Web App
 
-Agregar la API Key en `local.properties` (no versionado):
-
-```properties
-MAPS_API_KEY=TU_API_KEY
-```
-
-Y en `AndroidManifest.xml`:
-
-```xml
-<meta-data
-    android:name="com.google.android.geo.API_KEY"
-    android:value="${MAPS_API_KEY}" />
-```
-
----
-
-## 📸 UI y Diseño
-
-* Interfaz construida con **Material Design 3**
-* Componentes nativos + vistas personalizadas
-* Mapas integrados con markers dinámicos para cada experiencia
-* Soporte para dark mode según configuración del dispositivo
-
----
-
-## 🧪 Pruebas y Debugging
-
-* Logging con `Logcat` (Android Studio)
-* Pruebas de reserva simulando disponibilidad en Firestore
-* Uso de Firebase Emulator Suite (opcional)
+* Las experiencias se gestionan desde el **Panel Web (React)**.
+* Las reservas generadas desde la app móvil se reflejan al instante en el dashboard.
+* Los cambios de disponibilidad se sincronizan en tiempo real.
 
 ---
 
@@ -129,4 +127,4 @@ Proyecto académico / prototipo funcional — uso libre para fines educativos.
 
 ---
 
-Si querés, puedo también hacerte la **versión en inglés**, o un README con **badges** (shields.io) completamente estilizado.
+Si querés también puedo hacerte **una versión más breve, una más técnica**, o incluso una **versión pensada para portfolio**.
