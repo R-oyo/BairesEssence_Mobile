@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "211864182519",
+    "firebase_url": "https://baires-essence-default-rtdb.firebaseio.com",
+    "project_id": "baires-essence",
+    "storage_bucket": "baires-essence.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:211864182519:android:0457b581e0ae4df543fdf2",
+        "android_client_info": {
+          "package_name": "com.example.bairesessence"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "211864182519-mv0fo4gf1juao3g2nt29ngum6glmmnun.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBM3zufPvUzja0YufPuHSjiJR82AmbYcUo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "211864182519-mv0fo4gf1juao3g2nt29ngum6glmmnun.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
