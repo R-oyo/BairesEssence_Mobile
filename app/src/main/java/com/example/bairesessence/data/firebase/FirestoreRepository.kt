@@ -145,9 +145,9 @@ object FirestoreRepository {
         ).await()
     }
 
-    suspend fun fetchReservasByUser(userEmail: String): List<Map<String, Any>> =
+    suspend fun fetchReservasByUser(userId: String): List<Map<String, Any>> =
         db.collection("reservas")
-            .whereEqualTo("email", userEmail)
+            .whereEqualTo("userId", userId)
             .get().await()
             .documents.mapNotNull { doc ->
                 val d = doc.data?.toMutableMap() ?: return@mapNotNull null

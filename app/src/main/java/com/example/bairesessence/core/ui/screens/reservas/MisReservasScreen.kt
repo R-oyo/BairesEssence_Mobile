@@ -30,10 +30,10 @@ fun MisReservasScreen(navController: NavController) {
     // Review dialog state
     var resenaTarget by remember { mutableStateOf<Triple<String, String, String>?>(null) } // reservaId, servicioId, title
 
-    LaunchedEffect(user?.email) {
-        if (user?.email != null) {
+    LaunchedEffect(user?.uid) {
+        if (user?.uid != null) {
             try {
-                reservas = FirestoreRepository.fetchReservasByUser(user.email!!)
+                reservas = FirestoreRepository.fetchReservasByUser(user.uid)
             } catch (e: Exception) {
                 fetchError = true
             }

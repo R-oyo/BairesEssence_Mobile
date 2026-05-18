@@ -30,11 +30,11 @@ fun PagosScreen(navController: NavController) {
     var reservas by remember { mutableStateOf(listOf<Map<String, Any>>()) }
     var cargando by remember { mutableStateOf(true) }
 
-    LaunchedEffect(user?.email) {
-        if (user?.email != null) {
+    LaunchedEffect(user?.uid) {
+        if (user?.uid != null) {
             scope.launch {
                 try {
-                    val snap = db.collection("reservas").whereEqualTo("email", user.email).get().await()
+                    val snap = db.collection("reservas").whereEqualTo("userId", user.uid).get().await()
                     reservas = snap.documents.mapNotNull { doc ->
                         val d = doc.data?.toMutableMap() ?: return@mapNotNull null
                         if (!d.containsKey("estado")) d["estado"] = "pendiente"
