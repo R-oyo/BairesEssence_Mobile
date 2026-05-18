@@ -28,12 +28,18 @@ fun MisReservasScreen(navController: NavController) {
     var fetchError by remember { mutableStateOf(false) }
 
     // Review dialog state
-    var resenaTarget by remember { mutableStateOf<Triple<String, String, String>?>(null) } // reservaId, servicioId, title
+    var resenaTarget by remember { mutableStateOf<Triple<String, String, String>?>(null) }
+    var userRole by remember { mutableStateOf("turista") }
 
     LaunchedEffect(user?.uid) {
         if (user?.uid != null) {
             try {
-                reservas = FirestoreRepository.fetchReservasByUser(user.uid)
+                userRole = FirestoreRepository.fetchUserRole(user.uid)
+                reservas = if (userRole == "admin" || userRole == "seller") {
+                    FirestoreRepository.fetchAllReservas()
+                } else {
+                    FirestoreRepository.fetchReservasByUser(user.uid)
+                }
             } catch (e: Exception) {
                 fetchError = true
             }
@@ -63,7 +69,7 @@ fun MisReservasScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mis Reservas", fontWeight = FontWeight.SemiBold, color = Color.White) },
+                title = { Text(if (userRole == "admin" || userRole == "seller") "Todas las reservas" else "Mis Reservas", fontWeight = FontWeight.SemiBold, color = Color.White) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BEDark)
             )
         },

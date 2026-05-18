@@ -145,6 +145,21 @@ object FirestoreRepository {
         ).await()
     }
 
+    suspend fun fetchUserRole(userId: String): String =
+        db.collection("users").document(userId).get().await()
+            .getString("role") ?: "turista"
+
+    suspend fun fetchAllReservas(): List<Map<String, Any>> =
+        db.collection("reservas")
+            .get().await()
+            .documents.mapNotNull { doc ->
+                val d = doc.data?.toMutableMap() ?: return@mapNotNull null
+                if (!d.containsKey("estado")) d["estado"] = "pendiente"
+                d["id"] = doc.id
+                d
+            }
+            .sortedByDescending { (it["timestamp"] as? com.google.firebase.Timestamp)?.seconds }
+
     suspend fun fetchReservasByUser(userId: String): List<Map<String, Any>> =
         db.collection("reservas")
             .whereEqualTo("userId", userId)

@@ -422,6 +422,7 @@ fun CarritoPanel(carritoVm: CarritoViewModel, navController: NavController, onCl
                 Button(
                     onClick = {
                         if (user == null) { error = "Iniciá sesión para confirmar."; return@Button }
+                        if (state.checkin.isBlank()) { error = "Agregá las fechas de viaje antes de confirmar."; return@Button }
                         guardando = true; error = null
                         scope.launch {
                             val serviciosMap = state.items.map { i ->

@@ -16,13 +16,23 @@ service cloud.firestore {
                     && request.resource.data.userId == request.auth.uid;
     }
 
-    // Reservas — usuario autenticado puede crear y leer las propias
+    // Perfil de usuario — cada uno lee/edita el suyo; admin lee todos
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Reservas — turista ve las suyas; admin y seller ven todas
     match /reservas/{docId} {
-      allow read: if request.auth != null
-                  && resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'seller']
+      );
       allow create: if request.auth != null
                     && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if false;
+      allow update: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'seller'];
+      allow delete: if false;
     }
 
     // Reseñas — crear autenticado, lectura pública
