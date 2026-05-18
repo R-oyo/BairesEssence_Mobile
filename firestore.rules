@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Experiencias — lectura pública, escritura solo desde admin (consola)
+    match /servicios/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Favoritos — cada usuario lee y escribe solo los suyos
+    match /favoritos/{docId} {
+      allow read, delete: if request.auth != null
+                          && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Reservas — usuario autenticado puede crear y leer las propias
+    match /reservas/{docId} {
+      allow read: if request.auth != null
+                  && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Reseñas — crear autenticado, lectura pública
+    match /reviews/{docId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+  }
+}

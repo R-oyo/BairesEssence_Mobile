@@ -19,9 +19,13 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.bairesessence.core.ui.components.BottomBar
 import com.example.bairesessence.core.ui.theme.*
+import com.example.bairesessence.data.firebase.FirestoreRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 data class Actividad(val id: String = "", val time: String = "", val title: String = "", val description: String = "")
 
@@ -30,14 +34,13 @@ data class Actividad(val id: String = "", val time: String = "", val title: Stri
 fun ItineraryScreen(navController: NavController) {
     val auth = FirebaseAuth.getInstance()
     val db = FirebaseFirestore.getInstance()
-    val userId = auth.currentUser?.uid
+    val user = auth.currentUser
+    val userId = user?.uid
+    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
     val actividades = remember { mutableStateListOf<Actividad>() }
+    var reservas by remember { mutableStateOf(listOf<Map<String, Any>>()) }
     var cargando by remember { mutableStateOf(true) }
-    var showDialog by remember { mutableStateOf(false) }
-    var time by remember { mutableStateOf("") }
-    var titulo by remember { mutableStateOf("") }
-    var descripcion by remember { mutableStateOf("") }
 
     DisposableEffect(userId) {
         var reg: ListenerRegistration? = null
@@ -60,6 +63,16 @@ fun ItineraryScreen(navController: NavController) {
         onDispose { reg?.remove() }
     }
 
+    LaunchedEffect(user?.email) {
+        if (user?.email != null) {
+            runCatching {
+                reservas = FirestoreRepository.fetchReservasByUser(user.email!!)
+                    .filter { (it["checkin"] as? String ?: "") >= today }
+                    .filter { (it["estado"] as? String) !in listOf("cancelada") }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -68,8 +81,11 @@ fun ItineraryScreen(navController: NavController) {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showDialog = true }, containerColor = BEPrimary) {
-                Icon(Icons.Default.Add, contentDescription = "Agregar", tint = Color.White)
+            FloatingActionButton(
+                onClick = { navController.navigate("home") },
+                containerColor = BEPrimary
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Agregar experiencia", tint = Color.White)
             }
         },
         bottomBar = { BottomBar(navController) },
@@ -79,69 +95,114 @@ fun ItineraryScreen(navController: NavController) {
             Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = BEPrimary)
             }
-        } else if (actividades.isEmpty()) {
+        } else if (actividades.isEmpty() && reservas.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("📅", style = MaterialTheme.typography.displayMedium)
                     Spacer(Modifier.height(8.dp))
                     Text("Aún no tenés actividades", style = MaterialTheme.typography.titleMedium, color = BETextSecondary)
-                    Text("Tocá + para agregar una", style = MaterialTheme.typography.bodyMedium, color = BETextMuted)
+                    Text("Tocá + para explorar experiencias", style = MaterialTheme.typography.bodyMedium, color = BETextMuted)
                 }
             }
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(0.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(actividades) { act ->
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        // Timeline
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(32.dp)) {
-                            Box(Modifier.size(10.dp).clip(CircleShape).background(BEPrimary))
-                            Box(Modifier.width(2.dp).height(64.dp).background(BEBorder))
+                // ── Próximas reservas
+                if (reservas.isNotEmpty()) {
+                    item {
+                        Text("Próximas reservas",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = BETextPrimary,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                    }
+                    items(reservas) { r ->
+                        val checkin = r["checkin"] as? String ?: ""
+                        val checkout = r["checkout"] as? String ?: ""
+                        val estado = r["estado"] as? String ?: "pendiente"
+                        val svcs = (r["servicios"] as? List<*>)?.filterIsInstance<Map<*, *>>()
+                        val estadoColor = when (estado) {
+                            "confirmada" -> BEPrimary
+                            "pagada"     -> Color(0xFF6366F1)
+                            else         -> BEWarning
                         }
-                        Spacer(Modifier.width(12.dp))
                         Card(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = BESurface),
-                            elevation = CardDefaults.cardElevation(2.dp)
+                            elevation = CardDefaults.cardElevation(2.dp),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                if (act.time.isNotBlank()) Text(act.time, style = MaterialTheme.typography.labelSmall, color = BEPrimary, fontWeight = FontWeight.Bold)
-                                Text(act.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                                if (act.description.isNotBlank()) Text(act.description, style = MaterialTheme.typography.bodySmall, color = BETextSecondary)
+                            Column {
+                                Box(Modifier.fillMaxWidth().height(3.dp).background(estadoColor))
+                                Column(Modifier.padding(12.dp)) {
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("$checkin → $checkout",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = BETextPrimary)
+                                        Surface(shape = RoundedCornerShape(99.dp), color = estadoColor.copy(0.13f)) {
+                                            Text(estado,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = estadoColor, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                    if (!svcs.isNullOrEmpty()) {
+                                        Spacer(Modifier.height(6.dp))
+                                        svcs.forEach { s ->
+                                            Text("• ${s["title"] ?: "Experiencia"}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = BETextSecond)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    item { Spacer(Modifier.height(4.dp)) }
+                }
+
+                // ── Actividades manuales
+                if (actividades.isNotEmpty()) {
+                    item {
+                        Text("Actividades",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = BETextPrimary,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                    }
+                    items(actividades) { act ->
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(32.dp)) {
+                                Box(Modifier.size(10.dp).clip(CircleShape).background(BEPrimary))
+                                Box(Modifier.width(2.dp).height(64.dp).background(BEBorder))
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = BESurface),
+                                elevation = CardDefaults.cardElevation(2.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    if (act.time.isNotBlank()) Text(act.time, style = MaterialTheme.typography.labelSmall, color = BEPrimary, fontWeight = FontWeight.Bold)
+                                    Text(act.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                    if (act.description.isNotBlank()) Text(act.description, style = MaterialTheme.typography.bodySmall, color = BETextSecondary)
+                                }
                             }
                         }
                     }
                 }
             }
         }
-    }
-
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text("Agregar actividad") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = time, onValueChange = { time = it }, label = { Text("Hora (ej: 10:30)") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp))
-                    OutlinedTextField(value = titulo, onValueChange = { titulo = it }, label = { Text("Nombre") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp))
-                    OutlinedTextField(value = descripcion, onValueChange = { descripcion = it }, label = { Text("Descripción") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp))
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (userId != null && titulo.isNotBlank()) {
-                        db.collection("users").document(userId).collection("itinerary")
-                            .add(mapOf("time" to time, "title" to titulo, "description" to descripcion))
-                        time = ""; titulo = ""; descripcion = ""
-                        showDialog = false
-                    }
-                }) { Text("Guardar", color = BEPrimary) }
-            },
-            dismissButton = { TextButton(onClick = { showDialog = false }) { Text("Cancelar") } }
-        )
     }
 }

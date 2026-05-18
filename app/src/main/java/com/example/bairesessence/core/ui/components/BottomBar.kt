@@ -23,7 +23,7 @@ fun BottomBar(navController: NavController) {
         NavItem("home",       Icons.Default.Home,      "Inicio"),
         NavItem("favoritos",  Icons.Default.Favorite,  "Favoritos"),
         NavItem("itinerary",  Icons.Default.DateRange, "Itinerario"),
-        NavItem("pagos",      Icons.Default.ListAlt,   "Reservas"),
+        NavItem("mis_reservas", Icons.Default.ListAlt, "Reservas"),
         NavItem("perfil",     Icons.Default.Person,    "Perfil"),
     )
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route

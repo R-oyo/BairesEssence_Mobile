@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.bairesessence.core.ui.components.BottomBar
 import com.example.bairesessence.core.ui.components.ResenaDialog
 import com.example.bairesessence.core.ui.theme.*
 import com.example.bairesessence.data.firebase.FirestoreRepository
@@ -65,14 +64,10 @@ fun MisReservasScreen(navController: NavController) {
         topBar = {
             TopAppBar(
                 title = { Text("Mis Reservas", fontWeight = FontWeight.SemiBold, color = Color.White) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, null, tint = Color.White)
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BEDark)
             )
         },
+        bottomBar = { BottomBar(navController) },
         containerColor = BEBackground
     ) { innerPadding ->
         when {
@@ -206,6 +201,20 @@ fun MisReservasScreen(navController: NavController) {
                                             style = MaterialTheme.typography.titleSmall,
                                             fontWeight = FontWeight.Bold, color = BEPrimary
                                         )
+                                    }
+                                }
+
+                                // Pay button — only for confirmed reservations
+                                if (estado == "confirmada") {
+                                    Spacer(Modifier.height(10.dp))
+                                    Button(
+                                        onClick = { navController.navigate("pago_detalle/$reservaId") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.ui.graphics.Color(0xFF009EE3))
+                                    ) {
+                                        Text("💳 Pagar con MercadoPago", color = Color.White,
+                                            style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
 

@@ -7,8 +7,9 @@ data class Servicio(
     val title: String = "",
     val description: String = "",
     val image: String = "",
-    @com.google.firebase.firestore.PropertyName("price")
-    val precio: Double = 0.0,
+    @get:com.google.firebase.firestore.Exclude
+    @set:com.google.firebase.firestore.Exclude
+    var precio: Double = 0.0,
     val categoria: String = "",
     val duracion: String = "",
     val idioma: String = "",

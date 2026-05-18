@@ -82,7 +82,7 @@ dependencies {
     implementation("com.google.firebase:firebase-common-ktx:21.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
     implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.firebase:firebase-functions-ktx")
+    implementation("com.google.firebase:firebase-functions:21.1.0")
     implementation("com.google.android.gms:play-services-auth:21.5.1")
 
     // Chrome Custom Tabs (MercadoPago checkout)
