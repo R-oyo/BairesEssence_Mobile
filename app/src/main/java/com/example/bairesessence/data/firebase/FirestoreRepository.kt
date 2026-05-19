@@ -75,22 +75,38 @@ object FirestoreRepository {
         checkout: String,
         servicios: List<Map<String, Any>>,
         personas: Int,
-        total: Double
+        total: Double,
+        acompanantes: List<Map<String, Any>> = emptyList()
     ): String? = try {
         val data = hashMapOf(
-            "userId"    to userId,
-            "email"     to userEmail,
-            "fullname"  to fullname,
-            "checkin"   to checkin,
-            "checkout"  to checkout,
-            "servicios" to servicios,
-            "personas"  to personas,
-            "total"     to total,
-            "estado"    to "pendiente",
-            "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+            "userId"       to userId,
+            "email"        to userEmail,
+            "fullname"     to fullname,
+            "checkin"      to checkin,
+            "checkout"     to checkout,
+            "servicios"    to servicios,
+            "personas"     to personas,
+            "total"        to total,
+            "acompanantes" to acompanantes,
+            "estado"       to "pendiente",
+            "timestamp"    to com.google.firebase.firestore.FieldValue.serverTimestamp()
         )
         db.collection("reservas").add(data).await().id
     } catch (e: Exception) { e.printStackTrace(); null }
+
+    suspend fun cancelarReserva(reservaId: String) {
+        db.collection("reservas").document(reservaId)
+            .update(mapOf(
+                "estado" to "cancelada",
+                "motivoCancelacion" to "Cancelada por el usuario"
+            )).await()
+    }
+
+    suspend fun actualizarFechasReserva(reservaId: String, checkin: String, checkout: String) {
+        db.collection("reservas").document(reservaId)
+            .update(mapOf("checkin" to checkin, "checkout" to checkout))
+            .await()
+    }
 
     // ── Favoritos ──────────────────────────────────────────
     suspend fun fetchFavoritoIds(userId: String): Set<String> =

@@ -63,4 +63,30 @@ class ReservasViewModel : ViewModel() {
             }
         }
     }
+
+    fun cancelarReserva(reservaId: String) {
+        viewModelScope.launch {
+            runCatching { FirestoreRepository.cancelarReserva(reservaId) }.onSuccess {
+                _reservas.update { lista ->
+                    lista.map { r ->
+                        if (r["id"] == reservaId) r.toMutableMap().apply { put("estado", "cancelada") } else r
+                    }
+                }
+            }
+        }
+    }
+
+    fun actualizarFechas(reservaId: String, checkin: String, checkout: String) {
+        viewModelScope.launch {
+            runCatching { FirestoreRepository.actualizarFechasReserva(reservaId, checkin, checkout) }.onSuccess {
+                _reservas.update { lista ->
+                    lista.map { r ->
+                        if (r["id"] == reservaId) r.toMutableMap().apply {
+                            put("checkin", checkin); put("checkout", checkout)
+                        } else r
+                    }
+                }
+            }
+        }
+    }
 }

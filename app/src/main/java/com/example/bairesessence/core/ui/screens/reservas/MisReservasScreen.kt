@@ -31,6 +31,8 @@ fun MisReservasScreen(navController: NavController) {
 
     var resenaTarget by remember { mutableStateOf<Triple<String, String, String>?>(null) }
     var pasajerosTarget by remember { mutableStateOf<Pair<String, List<Map<String, Any>>>?>(null) }
+    var cancelarTarget by remember { mutableStateOf<String?>(null) }
+    var editFechasTarget by remember { mutableStateOf<Triple<String, String, String>?>(null) }
 
     LaunchedEffect(user?.uid) {
         if (user?.uid != null) vm.cargar(user.uid)
@@ -198,7 +200,7 @@ fun MisReservasScreen(navController: NavController) {
                                     }
                                 }
 
-                                // Editar pasajeros — solo pendientes
+                                // Editar pasajeros y fechas — solo pendientes
                                 if (estado == "pendiente" && svcs != null) {
                                     Spacer(Modifier.height(10.dp))
                                     val serviciosList = svcs.filterIsInstance<Map<*, *>>().map { s ->
@@ -218,7 +220,29 @@ fun MisReservasScreen(navController: NavController) {
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = BEWarning),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, BEWarning.copy(0.5f))
-                                    ) { Text("👥 Editar pasajeros", fontWeight = FontWeight.SemiBold) }
+                                    ) { Text("👥 Editar pasajeros / experiencias", fontWeight = FontWeight.SemiBold) }
+                                    Spacer(Modifier.height(6.dp))
+                                    OutlinedButton(
+                                        onClick = {
+                                            editFechasTarget = Triple(
+                                                reservaId,
+                                                r["checkin"] as? String ?: "",
+                                                r["checkout"] as? String ?: ""
+                                            )
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = BEPrimary),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, BEPrimary.copy(0.4f))
+                                    ) { Text("📅 Modificar fechas", fontWeight = FontWeight.SemiBold) }
+                                    Spacer(Modifier.height(6.dp))
+                                    OutlinedButton(
+                                        onClick = { cancelarTarget = reservaId },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = BEError),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, BEError.copy(0.4f))
+                                    ) { Text("✕ Cancelar reserva", fontWeight = FontWeight.SemiBold) }
                                 }
 
                                 // Reseña
@@ -273,6 +297,33 @@ fun MisReservasScreen(navController: NavController) {
             }
         )
     }
+
+    cancelarTarget?.let { rId ->
+        AlertDialog(
+            onDismissRequest = { cancelarTarget = null },
+            containerColor = BESurface,
+            title = { Text("¿Cancelar reserva?", fontWeight = FontWeight.Bold, color = BETextPrimary) },
+            text = {
+                Text("Esta acción no se puede deshacer. ¿Estás seguro de que querés cancelar esta reserva?",
+                    style = MaterialTheme.typography.bodyMedium, color = BETextSecond)
+            },
+            confirmButton = {
+                Button(
+                    onClick = { vm.cancelarReserva(rId); cancelarTarget = null },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = BEError)
+                ) { Text("Sí, cancelar", color = Color.White, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { cancelarTarget = null }) { Text("No, volver", color = BETextSecond) }
+            }
+        )
+    }
+
+    editFechasTarget?.let { (rId, ci, co) ->
+        EditFechasDialog(reservaId = rId, checkin = ci, checkout = co, vm = vm,
+            onDismiss = { editFechasTarget = null })
+    }
 }
 
 @Composable
@@ -284,29 +335,51 @@ private fun PasajerosDialog(
     var personasPorServicio by remember {
         mutableStateOf(servicios.map { (it["personas"] as? Number)?.toInt() ?: 1 })
     }
+    var eliminados by remember { mutableStateOf(setOf<Int>()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = BESurface,
-        title = { Text("Editar pasajeros", fontWeight = FontWeight.Bold, color = BETextPrimary) },
+        title = { Text("Editar reserva", fontWeight = FontWeight.Bold, color = BETextPrimary) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (servicios.indices.all { it in eliminados }) {
+                    Text("No podés quitar todas las experiencias.",
+                        color = BEError, style = MaterialTheme.typography.bodySmall)
+                }
                 servicios.forEachIndexed { i, svc ->
+                    if (i in eliminados) return@forEachIndexed
                     val personas = personasPorServicio.getOrElse(i) { 1 }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text(svc["title"] as? String ?: "Experiencia",
-                            style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
-                            color = BETextPrimary, modifier = Modifier.weight(1f))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = {
-                                if (personas > 1)
-                                    personasPorServicio = personasPorServicio.toMutableList().also { it[i] = personas - 1 }
-                            }) { Text("−", color = BEPrimary, fontWeight = FontWeight.Bold) }
-                            Text("$personas", fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp))
-                            IconButton(onClick = {
-                                personasPorServicio = personasPorServicio.toMutableList().also { it[i] = personas + 1 }
-                            }) { Text("+", color = BEPrimary, fontWeight = FontWeight.Bold) }
+                    Card(shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(containerColor = BESurfaceVar),
+                        modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(10.dp)) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically) {
+                                Text(svc["title"] as? String ?: "Experiencia",
+                                    style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+                                    color = BETextPrimary, modifier = Modifier.weight(1f))
+                                TextButton(
+                                    onClick = { eliminados = eliminados + i },
+                                    colors = ButtonDefaults.textButtonColors(contentColor = BEError)
+                                ) { Text("Quitar", style = MaterialTheme.typography.labelSmall) }
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Pasajeros:", style = MaterialTheme.typography.bodySmall, color = BETextMuted)
+                                IconButton(onClick = {
+                                    if (personas > 1)
+                                        personasPorServicio = personasPorServicio.toMutableList().also { it[i] = personas - 1 }
+                                }, modifier = Modifier.size(32.dp)) {
+                                    Text("−", color = BEPrimary, fontWeight = FontWeight.Bold)
+                                }
+                                Text("$personas", fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 4.dp))
+                                IconButton(onClick = {
+                                    personasPorServicio = personasPorServicio.toMutableList().also { it[i] = personas + 1 }
+                                }, modifier = Modifier.size(32.dp)) {
+                                    Text("+", color = BEPrimary, fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
                 }
@@ -315,12 +388,68 @@ private fun PasajerosDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val actualizados = servicios.mapIndexed { i, svc ->
-                        svc.toMutableMap().apply {
-                            put("personas", personasPorServicio.getOrElse(i) { 1 }.toLong())
+                    val actualizados = servicios.filterIndexed { i, _ -> i !in eliminados }
+                        .mapIndexed { _, svc ->
+                            val i = servicios.indexOf(svc)
+                            svc.toMutableMap().apply {
+                                put("personas", personasPorServicio.getOrElse(i) { 1 }.toLong())
+                            }
                         }
-                    }
                     onConfirm(actualizados)
+                },
+                enabled = servicios.indices.any { it !in eliminados },
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
+            ) { Text("Guardar", color = Color.White, fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar", color = BETextSecond) }
+        }
+    )
+}
+
+@Composable
+private fun EditFechasDialog(
+    reservaId: String,
+    checkin: String,
+    checkout: String,
+    vm: ReservasViewModel,
+    onDismiss: () -> Unit
+) {
+    var newCheckin  by remember { mutableStateOf(checkin) }
+    var newCheckout by remember { mutableStateOf(checkout) }
+    var errorFechas by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = BESurface,
+        title = { Text("Modificar fechas", fontWeight = FontWeight.Bold, color = BETextPrimary) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = newCheckin, onValueChange = { newCheckin = it; errorFechas = null },
+                    label = { Text("Llegada (yyyy-MM-dd)") },
+                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder)
+                )
+                OutlinedTextField(
+                    value = newCheckout, onValueChange = { newCheckout = it; errorFechas = null },
+                    label = { Text("Salida (yyyy-MM-dd)") },
+                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder)
+                )
+                errorFechas?.let { Text(it, color = BEError, style = MaterialTheme.typography.bodySmall) }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    when {
+                        newCheckin.isBlank()  -> errorFechas = "Ingresá la fecha de llegada."
+                        newCheckout.isBlank() -> errorFechas = "Ingresá la fecha de salida."
+                        newCheckout <= newCheckin -> errorFechas = "La salida debe ser posterior a la llegada."
+                        else -> { vm.actualizarFechas(reservaId, newCheckin, newCheckout); onDismiss() }
+                    }
                 },
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)

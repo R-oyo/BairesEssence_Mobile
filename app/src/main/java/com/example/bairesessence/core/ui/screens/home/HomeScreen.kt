@@ -60,7 +60,22 @@ fun CatalogoScreen(
     val filtrados = servicios.filter { s ->
         val matchCat = catActiva == "Todas" || s.categoria.equals(catActiva, true)
         val matchQ = busqueda.isBlank() || s.title.contains(busqueda, true) || s.description.contains(busqueda, true)
-        matchCat && matchQ
+        val matchFechas = run {
+            val ci = carritoState.checkin; val co = carritoState.checkout
+            if (ci.isBlank() || co.isBlank() || (s.from == null && s.until == null)) return@run true
+            val fmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+            val userIn  = runCatching { fmt.parse(ci)  }.getOrNull() ?: return@run true
+            val userOut = runCatching { fmt.parse(co) }.getOrNull() ?: return@run true
+            val svcFrom  = s.from?.toDate()
+            val svcUntil = s.until?.toDate()
+            when {
+                svcFrom != null && svcUntil != null -> !userOut.before(svcFrom) && !userIn.after(svcUntil)
+                svcFrom  != null -> !userOut.before(svcFrom)
+                svcUntil != null -> !userIn.after(svcUntil)
+                else -> true
+            }
+        }
+        matchCat && matchQ && matchFechas
     }
 
     Scaffold(
@@ -307,7 +322,7 @@ fun CatalogoScreen(
     }
 }
 
-// ── Carrito panel
+// ── Carrito panel (2 pasos: carrito → grupo de viaje)
 @Composable
 fun CarritoPanel(carritoVm: CarritoViewModel, navController: NavController, onClose: () -> Unit) {
     val state by carritoVm.state.collectAsState()
@@ -316,110 +331,197 @@ fun CarritoPanel(carritoVm: CarritoViewModel, navController: NavController, onCl
     var error by remember { mutableStateOf<String?>(null) }
     val user = FirebaseAuth.getInstance().currentUser
 
+    var paso by remember { mutableStateOf(0) }
+    var viajaSolo by remember { mutableStateOf(true) }
+    var compNombres by remember { mutableStateOf(listOf("")) }
+    var compDnis    by remember { mutableStateOf(listOf("")) }
+
     AlertDialog(
         onDismissRequest = onClose,
         containerColor = BESurface,
         title = {
-            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Text("Mi carrito", style = MaterialTheme.typography.titleLarge,
+            if (paso == 0) {
+                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Text("Mi carrito", style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold, color = BETextPrimary)
+                    if (state.items.isNotEmpty())
+                        TextButton(onClick = { carritoVm.limpiar() }) { Text("Vaciar", color = BEError) }
+                }
+            } else {
+                Text("Grupo de viaje", style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold, color = BETextPrimary)
-                if (state.items.isNotEmpty())
-                    TextButton(onClick = { carritoVm.limpiar() }) { Text("Vaciar", color = BEError) }
             }
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                if (state.items.isEmpty()) {
-                    Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("🧳", style = MaterialTheme.typography.displayMedium)
-                            Spacer(Modifier.height(8.dp))
-                            Text("Tu carrito está vacío", color = BETextSecond,
-                                style = MaterialTheme.typography.bodyMedium)
+                if (paso == 0) {
+                    if (state.items.isEmpty()) {
+                        Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("🧳", style = MaterialTheme.typography.displayMedium)
+                                Spacer(Modifier.height(8.dp))
+                                Text("Tu carrito está vacío", color = BETextSecond,
+                                    style = MaterialTheme.typography.bodyMedium)
+                            }
                         }
-                    }
-                } else {
-                    if (state.checkin.isNotBlank()) {
-                        Surface(shape = RoundedCornerShape(8.dp), color = BEPrimary.copy(0.08f)) {
-                            Text("📅 ${state.checkin}  →  ${state.checkout}",
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                style = MaterialTheme.typography.bodySmall, color = BEPrimaryDark,
-                                fontWeight = FontWeight.Medium)
+                    } else {
+                        if (state.checkin.isNotBlank()) {
+                            Surface(shape = RoundedCornerShape(8.dp), color = BEPrimary.copy(0.08f)) {
+                                Text("📅 ${state.checkin}  →  ${state.checkout}",
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    style = MaterialTheme.typography.bodySmall, color = BEPrimaryDark,
+                                    fontWeight = FontWeight.Medium)
+                            }
+                            Spacer(Modifier.height(12.dp))
                         }
-                        Spacer(Modifier.height(12.dp))
-                    }
-
-                    state.items.forEach { item ->
-                        Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = CardDefaults.cardColors(containerColor = BESurfaceVar)) {
-                            Row(modifier = Modifier.fillMaxWidth().padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(item.title, style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold, maxLines = 1, color = BETextPrimary)
-                                    if (item.precio > 0) {
-                                        Text("${item.precioFormateado} × ${item.personas} = ${item.subtotalFormateado}",
-                                            style = MaterialTheme.typography.bodySmall, color = BEPrimary)
+                        state.items.forEach { item ->
+                            Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = CardDefaults.cardColors(containerColor = BESurfaceVar)) {
+                                Row(modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(item.title, style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold, maxLines = 1, color = BETextPrimary)
+                                        if (item.precio > 0) {
+                                            Text("${item.precioFormateado} × ${item.personas} = ${item.subtotalFormateado}",
+                                                style = MaterialTheme.typography.bodySmall, color = BEPrimary)
+                                        }
                                     }
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    IconButton(onClick = { carritoVm.actualizarPersonas(item.servicioId, item.personas - 1) },
-                                        modifier = Modifier.size(28.dp)) {
-                                        Text("−", color = BEPrimary, fontWeight = FontWeight.Bold)
-                                    }
-                                    Text("${item.personas}", style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp))
-                                    IconButton(onClick = { carritoVm.actualizarPersonas(item.servicioId, item.personas + 1) },
-                                        modifier = Modifier.size(28.dp)) {
-                                        Text("+", color = BEPrimary, fontWeight = FontWeight.Bold)
-                                    }
-                                    IconButton(onClick = { carritoVm.quitarItem(item.servicioId) },
-                                        modifier = Modifier.size(28.dp)) {
-                                        Text("✕", color = BEError, style = MaterialTheme.typography.labelSmall)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        IconButton(onClick = { carritoVm.actualizarPersonas(item.servicioId, item.personas - 1) },
+                                            modifier = Modifier.size(28.dp)) {
+                                            Text("−", color = BEPrimary, fontWeight = FontWeight.Bold)
+                                        }
+                                        Text("${item.personas}", style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp))
+                                        IconButton(onClick = { carritoVm.actualizarPersonas(item.servicioId, item.personas + 1) },
+                                            modifier = Modifier.size(28.dp)) {
+                                            Text("+", color = BEPrimary, fontWeight = FontWeight.Bold)
+                                        }
+                                        IconButton(onClick = { carritoVm.quitarItem(item.servicioId) },
+                                            modifier = Modifier.size(28.dp)) {
+                                            Text("✕", color = BEError, style = MaterialTheme.typography.labelSmall)
+                                        }
                                     }
                                 }
                             }
                         }
+                        Spacer(Modifier.height(8.dp))
+                        HorizontalDivider(color = BEBorder)
+                        Spacer(Modifier.height(8.dp))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Total estimado", style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold, color = BETextPrimary)
+                            Text("${"$"}${"%,.0f".format(carritoVm.total).replace(",", ".")}",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold, color = BEPrimary)
+                        }
+                        error?.let {
+                            Spacer(Modifier.height(4.dp))
+                            Text(it, color = BEError, style = MaterialTheme.typography.bodySmall)
+                        }
                     }
-
-                    Spacer(Modifier.height(8.dp))
-                    HorizontalDivider(color = BEBorder)
-                    Spacer(Modifier.height(8.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Total estimado", style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold, color = BETextPrimary)
-                        Text("${"$"}${"%,.0f".format(carritoVm.total).replace(",", ".")}",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold, color = BEPrimary)
-                    }
-                    error?.let {
-                        Spacer(Modifier.height(4.dp))
-                        Text(it, color = BEError, style = MaterialTheme.typography.bodySmall)
+                } else {
+                    // ── Paso 1: grupo de viaje
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()) {
+                            RadioButton(selected = viajaSolo, onClick = { viajaSolo = true },
+                                colors = RadioButtonDefaults.colors(selectedColor = BEPrimary))
+                            Text("Viajo solo/a", style = MaterialTheme.typography.bodyMedium, color = BETextPrimary)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()) {
+                            RadioButton(selected = !viajaSolo, onClick = { viajaSolo = false },
+                                colors = RadioButtonDefaults.colors(selectedColor = BEPrimary))
+                            Text("Viajo con acompañantes", style = MaterialTheme.typography.bodyMedium, color = BETextPrimary)
+                        }
+                        if (!viajaSolo) {
+                            HorizontalDivider(color = BEBorder)
+                            compNombres.forEachIndexed { i, nombre ->
+                                Text("Acompañante ${i + 1}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = BETextMuted, fontWeight = FontWeight.SemiBold)
+                                OutlinedTextField(
+                                    value = nombre,
+                                    onValueChange = { v ->
+                                        compNombres = compNombres.toMutableList().also { it[i] = v }
+                                    },
+                                    label = { Text("Nombre completo") }, singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder)
+                                )
+                                OutlinedTextField(
+                                    value = compDnis.getOrElse(i) { "" },
+                                    onValueChange = { v ->
+                                        compDnis = compDnis.toMutableList().also { it[i] = v }
+                                    },
+                                    label = { Text("DNI / Pasaporte") }, singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder)
+                                )
+                                if (compNombres.size > 1) {
+                                    TextButton(
+                                        onClick = {
+                                            compNombres = compNombres.toMutableList().also { it.removeAt(i) }
+                                            compDnis    = compDnis.toMutableList().also { it.removeAt(i) }
+                                        },
+                                        colors = ButtonDefaults.textButtonColors(contentColor = BEError)
+                                    ) { Text("Quitar", style = MaterialTheme.typography.bodySmall) }
+                                }
+                            }
+                            TextButton(
+                                onClick = { compNombres = compNombres + ""; compDnis = compDnis + "" },
+                                colors = ButtonDefaults.textButtonColors(contentColor = BEPrimary)
+                            ) { Text("+ Agregar otro acompañante") }
+                        }
+                        error?.let {
+                            Text(it, color = BEError, style = MaterialTheme.typography.bodySmall)
+                        }
                     }
                 }
             }
         },
         confirmButton = {
-            if (state.items.isNotEmpty()) {
+            if (paso == 0) {
+                if (state.items.isNotEmpty()) {
+                    Button(
+                        onClick = {
+                            when {
+                                user == null -> error = "Iniciá sesión para continuar."
+                                state.checkin.isBlank() -> error = "Agregá las fechas de viaje antes de continuar."
+                                else -> { error = null; paso = 1 }
+                            }
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
+                    ) { Text("Continuar →", color = Color.White, fontWeight = FontWeight.Bold) }
+                }
+            } else {
                 Button(
                     onClick = {
-                        if (user == null) { error = "Iniciá sesión para confirmar."; return@Button }
-                        if (state.checkin.isBlank()) { error = "Agregá las fechas de viaje antes de confirmar."; return@Button }
                         guardando = true; error = null
+                        val acompMap = if (viajaSolo) emptyList() else
+                            compNombres.mapIndexed { i, nombre ->
+                                mapOf("nombre" to nombre.trim(), "dni" to compDnis.getOrElse(i) { "" }.trim())
+                            }.filter { (it["nombre"] as? String).orEmpty().isNotBlank() }
                         scope.launch {
-                            val serviciosMap = state.items.map { i ->
-                                mapOf("id" to i.servicioId, "title" to i.title, "image" to i.image,
-                                    "price" to i.precio, "personas" to i.personas,
-                                    "lat" to i.lat, "lng" to i.lng)
+                            val serviciosMap = state.items.map { it2 ->
+                                mapOf("id" to it2.servicioId, "title" to it2.title, "image" to it2.image,
+                                    "price" to it2.precio, "personas" to it2.personas,
+                                    "lat" to it2.lat, "lng" to it2.lng)
                             }
                             val id = FirestoreRepository.crearReserva(
-                                userId = user.uid, userEmail = user.email ?: "",
+                                userId = user!!.uid, userEmail = user.email ?: "",
                                 fullname = user.displayName ?: user.email ?: "",
                                 checkin = state.checkin, checkout = state.checkout,
                                 servicios = serviciosMap,
-                                personas = state.items.sumOf { it.personas },
-                                total = carritoVm.total
+                                personas = state.items.sumOf { it2 -> it2.personas },
+                                total = carritoVm.total,
+                                acompanantes = acompMap
                             )
                             guardando = false
                             if (id != null) {
@@ -438,7 +540,13 @@ fun CarritoPanel(carritoVm: CarritoViewModel, navController: NavController, onCl
                 }
             }
         },
-        dismissButton = { TextButton(onClick = onClose) { Text("Cerrar", color = BETextSecond) } }
+        dismissButton = {
+            if (paso == 0) {
+                TextButton(onClick = onClose) { Text("Cerrar", color = BETextSecond) }
+            } else {
+                TextButton(onClick = { paso = 0; error = null }) { Text("← Volver", color = BETextSecond) }
+            }
+        }
     )
 }
 
