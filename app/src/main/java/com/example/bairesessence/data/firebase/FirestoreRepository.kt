@@ -150,6 +150,41 @@ object FirestoreRepository {
         db.collection("users").document(userId).get().await()
             .getString("role") ?: "turista"
 
+    suspend fun sendMensaje(reservaId: String, senderId: String, senderEmail: String, texto: String) {
+        db.collection("reservas").document(reservaId)
+            .collection("mensajes")
+            .add(mapOf(
+                "texto"       to texto,
+                "senderId"    to senderId,
+                "senderEmail" to senderEmail,
+                "timestamp"   to com.google.firebase.firestore.FieldValue.serverTimestamp()
+            )).await()
+    }
+
+    suspend fun actualizarPasajeros(reservaId: String, servicios: List<Map<String, Any>>, nuevoTotal: Double) {
+        db.collection("reservas").document(reservaId)
+            .update(mapOf("servicios" to servicios, "total" to nuevoTotal)).await()
+    }
+
+    // ── Familia ────────────────────────────────────────────
+    suspend fun fetchFamilia(userId: String): List<Map<String, Any>> =
+        db.collection("users").document(userId).collection("familia")
+            .get().await()
+            .documents.mapNotNull { doc ->
+                val d = doc.data?.toMutableMap() ?: return@mapNotNull null
+                d["id"] = doc.id
+                d
+            }
+
+    suspend fun agregarFamiliar(userId: String, data: Map<String, Any>): String? =
+        try { db.collection("users").document(userId).collection("familia").add(data).await().id }
+        catch (e: Exception) { null }
+
+    suspend fun eliminarFamiliar(userId: String, familiarId: String) {
+        db.collection("users").document(userId).collection("familia")
+            .document(familiarId).delete().await()
+    }
+
     suspend fun fetchReviewsByServicio(servicioId: String): List<Map<String, Any>> =
         db.collection("reviews")
             .whereEqualTo("servicioId", servicioId)

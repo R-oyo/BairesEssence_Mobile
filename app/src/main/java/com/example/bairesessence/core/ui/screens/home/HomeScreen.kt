@@ -34,17 +34,17 @@ private val CATEGORIAS = listOf("Todas", "Tours", "Gastronomia", "Traslados", "E
 @Composable
 fun CatalogoScreen(
     navController: NavController,
-    carritoVm: CarritoViewModel
+    carritoVm: CarritoViewModel,
+    homeVm: HomeViewModel
 ) {
     val carritoState by carritoVm.state.collectAsState()
-    val scope = rememberCoroutineScope()
-    var servicios by remember { mutableStateOf(listOf<Servicio>()) }
-    var cargando by remember { mutableStateOf(true) }
-    var fetchError by remember { mutableStateOf(false) }
+    val servicios by homeVm.servicios.collectAsState()
+    val cargando by homeVm.cargando.collectAsState()
+    val fetchError by homeVm.fetchError.collectAsState()
+    val favoritoIds by homeVm.favoritoIds.collectAsState()
     var catActiva by remember { mutableStateOf("Todas") }
     var busqueda by remember { mutableStateOf("") }
     var mostrarCarrito by remember { mutableStateOf(false) }
-    var favoritoIds by remember { mutableStateOf(setOf<String>()) }
 
     var mostrarFechasDialog by remember { mutableStateOf(false) }
     var checkinTemp by remember { mutableStateOf("") }
@@ -53,20 +53,8 @@ fun CatalogoScreen(
 
     val user = FirebaseAuth.getInstance().currentUser
 
-    LaunchedEffect(Unit) {
-        try {
-            servicios = FirestoreRepository.fetchServicios()
-        } catch (e: Exception) {
-            fetchError = true
-        }
-        if (user != null) {
-            try {
-                favoritoIds = FirestoreRepository.fetchFavoritoIds(user.uid)
-            } catch (_: Exception) {
-                // Favoritos no disponibles — no es fatal
-            }
-        }
-        cargando = false
+    LaunchedEffect(user?.uid) {
+        homeVm.cargar(user?.uid)
     }
 
     val filtrados = servicios.filter { s ->
@@ -246,12 +234,7 @@ fun CatalogoScreen(
                                 enCarrito = carritoVm.estaEnCarrito(s.id),
                                 esFavorito = s.id in favoritoIds,
                                 onFavoritoClick = {
-                                    if (user != null) {
-                                        scope.launch {
-                                            val esAhora = FirestoreRepository.toggleFavorito(user.uid, s.id)
-                                            favoritoIds = if (esAhora) favoritoIds + s.id else favoritoIds - s.id
-                                        }
-                                    }
+                                    if (user != null) homeVm.toggleFavorito(user.uid, s.id)
                                 },
                                 onClick = { navController.navigate("detalle/${s.id}") }
                             )
@@ -462,5 +445,6 @@ fun CarritoPanel(carritoVm: CarritoViewModel, navController: NavController, onCl
 // ── MainScreen
 @Composable
 fun MainScreen(navController: NavController, carritoVm: CarritoViewModel = viewModel()) {
-    CatalogoScreen(navController = navController, carritoVm = carritoVm)
+    val homeVm: HomeViewModel = viewModel()
+    CatalogoScreen(navController = navController, carritoVm = carritoVm, homeVm = homeVm)
 }

@@ -7,8 +7,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ListAlt
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.bairesessence.core.navigation.Screen
+import com.example.bairesessence.data.firebase.FirestoreRepository
+import kotlinx.coroutines.launch
 import com.example.bairesessence.core.ui.theme.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -41,6 +46,18 @@ fun PerfilScreen(navController: NavController) {
     var totalReservas by remember { mutableStateOf(0) }
     var confirmadas by remember { mutableStateOf(0) }
     var pendientes by remember { mutableStateOf(0) }
+
+    val scope = rememberCoroutineScope()
+    var familia by remember { mutableStateOf(listOf<Map<String, Any>>()) }
+    var cargandoFamilia by remember { mutableStateOf(true) }
+    var mostrarAgregarFamiliar by remember { mutableStateOf(false) }
+
+    LaunchedEffect(userId) {
+        if (userId != null) {
+            familia = runCatching { FirestoreRepository.fetchFamilia(userId) }.getOrDefault(emptyList())
+        }
+        cargandoFamilia = false
+    }
 
     LaunchedEffect(userId) {
         if (userId != null) {
@@ -190,6 +207,42 @@ fun PerfilScreen(navController: NavController) {
             ) { Text("📋 Ver mis reservas", fontWeight = FontWeight.SemiBold) }
 
             HorizontalDivider(color = BEBorder)
+            Spacer(Modifier.height(4.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Grupo Familiar", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                TextButton(onClick = { mostrarAgregarFamiliar = true }) { Text("+ Agregar", color = BEPrimary) }
+            }
+            if (cargandoFamilia) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = BEPrimary, strokeWidth = 2.dp)
+            } else if (familia.isEmpty()) {
+                Text("Todavía no agregaste familiares.", style = MaterialTheme.typography.bodyMedium, color = BETextMuted)
+            } else {
+                familia.forEach { f ->
+                    Card(shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = BESurfaceVar),
+                        elevation = CardDefaults.cardElevation(1.dp), modifier = Modifier.fillMaxWidth()) {
+                        Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(f["nombre"] as? String ?: "", fontWeight = FontWeight.SemiBold,
+                                    color = BETextPrimary, style = MaterialTheme.typography.bodyMedium)
+                                val rel = f["relacion"] as? String
+                                if (!rel.isNullOrBlank()) Text(rel, style = MaterialTheme.typography.bodySmall, color = BETextSecond)
+                                val dni = f["dni"] as? String
+                                if (!dni.isNullOrBlank()) Text("DNI: $dni", style = MaterialTheme.typography.bodySmall, color = BETextMuted)
+                            }
+                            IconButton(onClick = {
+                                val fId = f["id"] as? String ?: return@IconButton
+                                scope.launch {
+                                    runCatching { FirestoreRepository.eliminarFamiliar(userId!!, fId) }
+                                        .onSuccess { familia = familia.filter { it["id"] != fId } }
+                                }
+                            }) { Icon(Icons.Default.Delete, null, tint = BEError, modifier = Modifier.size(20.dp)) }
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider(color = BEBorder)
 
             OutlinedButton(
                 onClick = {
@@ -203,6 +256,61 @@ fun PerfilScreen(navController: NavController) {
             ) { Text("Cerrar sesión", fontWeight = FontWeight.SemiBold) }
         }
     }
+
+    if (mostrarAgregarFamiliar) {
+        AgregarFamiliarDialog(
+            onDismiss = { mostrarAgregarFamiliar = false },
+            onConfirm = { data ->
+                scope.launch {
+                    val id = FirestoreRepository.agregarFamiliar(userId!!, data)
+                    if (id != null) familia = familia + (data.toMutableMap().apply { put("id", id) })
+                    mostrarAgregarFamiliar = false
+                }
+            }
+        )
+    }
+}
+
+
+@Composable
+private fun AgregarFamiliarDialog(onDismiss: () -> Unit, onConfirm: (Map<String, Any>) -> Unit) {
+    var nombre by remember { mutableStateOf("") }
+    var dni by remember { mutableStateOf("") }
+    var fechaNacimiento by remember { mutableStateOf("") }
+    var relacion by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    AlertDialog(
+        onDismissRequest = onDismiss, containerColor = BESurface,
+        title = { Text("Agregar familiar", fontWeight = FontWeight.Bold, color = BETextPrimary) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                error?.let { Text(it, color = BEError, style = MaterialTheme.typography.bodySmall) }
+                OutlinedTextField(value = nombre, onValueChange = { nombre = it; error = null },
+                    label = { Text("Nombre completo") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder))
+                OutlinedTextField(value = dni, onValueChange = { dni = it },
+                    label = { Text("DNI / Pasaporte") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder))
+                OutlinedTextField(value = fechaNacimiento, onValueChange = { fechaNacimiento = it },
+                    label = { Text("Fecha nacimiento (dd/MM/yyyy)") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder))
+                OutlinedTextField(value = relacion, onValueChange = { relacion = it },
+                    label = { Text("Relación (Cónyuge, Hijo/a…)") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder))
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                if (nombre.isBlank()) { error = "El nombre es obligatorio."; return@Button }
+                onConfirm(mapOf("nombre" to nombre.trim(), "dni" to dni.trim(), "fechaNacimiento" to fechaNacimiento.trim(), "relacion" to relacion.trim()))
+            }, shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)) {
+                Text("Agregar", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar", color = BETextSecond) } }
+    )
 }
 
 @Composable

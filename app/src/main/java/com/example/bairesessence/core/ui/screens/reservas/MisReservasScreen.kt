@@ -12,39 +12,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.bairesessence.core.ui.components.BottomBar
 import com.example.bairesessence.core.ui.components.ResenaDialog
 import com.example.bairesessence.core.ui.theme.*
-import com.example.bairesessence.data.firebase.FirestoreRepository
 import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MisReservasScreen(navController: NavController) {
     val user = FirebaseAuth.getInstance().currentUser
-    var reservas by remember { mutableStateOf(listOf<Map<String, Any>>()) }
-    var cargando by remember { mutableStateOf(true) }
-    var fetchError by remember { mutableStateOf(false) }
+    val vm: ReservasViewModel = viewModel()
+    val reservas by vm.reservas.collectAsState()
+    val cargando by vm.cargando.collectAsState()
+    val fetchError by vm.fetchError.collectAsState()
+    val userRole by vm.userRole.collectAsState()
 
-    // Review dialog state
     var resenaTarget by remember { mutableStateOf<Triple<String, String, String>?>(null) }
-    var userRole by remember { mutableStateOf("turista") }
+    var pasajerosTarget by remember { mutableStateOf<Pair<String, List<Map<String, Any>>>?>(null) }
 
     LaunchedEffect(user?.uid) {
-        if (user?.uid != null) {
-            try {
-                userRole = FirestoreRepository.fetchUserRole(user.uid)
-                reservas = if (userRole == "admin" || userRole == "seller") {
-                    FirestoreRepository.fetchAllReservas()
-                } else {
-                    FirestoreRepository.fetchReservasByUser(user.uid)
-                }
-            } catch (e: Exception) {
-                fetchError = true
-            }
-        }
-        cargando = false
+        if (user?.uid != null) vm.cargar(user.uid)
     }
 
     val estadoColor = { e: String ->
@@ -69,7 +58,12 @@ fun MisReservasScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (userRole == "admin" || userRole == "seller") "Todas las reservas" else "Mis Reservas", fontWeight = FontWeight.SemiBold, color = Color.White) },
+                title = {
+                    Text(
+                        if (userRole in listOf("admin", "seller")) "Todas las reservas" else "Mis Reservas",
+                        fontWeight = FontWeight.SemiBold, color = Color.White
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BEDark)
             )
         },
@@ -93,8 +87,7 @@ fun MisReservasScreen(navController: NavController) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("🧳", style = MaterialTheme.typography.displayLarge)
                     Spacer(Modifier.height(8.dp))
-                    Text("No tenés reservas todavía", style = MaterialTheme.typography.titleMedium,
-                        color = BETextSecond)
+                    Text("No tenés reservas todavía", style = MaterialTheme.typography.titleMedium, color = BETextSecond)
                     Spacer(Modifier.height(12.dp))
                     Button(
                         onClick = { navController.navigate("home") },
@@ -122,11 +115,9 @@ fun MisReservasScreen(navController: NavController) {
                         elevation = CardDefaults.cardElevation(3.dp)
                     ) {
                         Column {
-                            // Colored top bar (TripAdvisor-style status indicator)
                             Box(Modifier.fillMaxWidth().height(4.dp).background(color))
 
                             Column(Modifier.padding(16.dp)) {
-                                // Header row: dates + status badge
                                 Row(
                                     Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -138,33 +129,23 @@ fun MisReservasScreen(navController: NavController) {
                                             style = MaterialTheme.typography.titleSmall,
                                             fontWeight = FontWeight.Bold, color = BETextPrimary
                                         )
-                                        Text(
-                                            r["email"] as? String ?: "",
-                                            style = MaterialTheme.typography.bodySmall, color = BETextMuted
-                                        )
+                                        Text(r["email"] as? String ?: "",
+                                            style = MaterialTheme.typography.bodySmall, color = BETextMuted)
                                     }
-                                    Surface(
-                                        shape = RoundedCornerShape(99.dp),
-                                        color = color.copy(alpha = 0.13f)
-                                    ) {
-                                        Text(
-                                            estadoLabel(estado),
+                                    Surface(shape = RoundedCornerShape(99.dp), color = color.copy(alpha = 0.13f)) {
+                                        Text(estadoLabel(estado),
                                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = color, fontWeight = FontWeight.Bold
-                                        )
+                                            color = color, fontWeight = FontWeight.Bold)
                                     }
                                 }
 
-                                // Services list
                                 if (svcs != null) {
                                     Spacer(Modifier.height(10.dp))
                                     svcs.filterIsInstance<Map<*, *>>().forEach { s ->
                                         val personas = (s["personas"] as? Long)?.toInt() ?: 1
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Box(
-                                                Modifier.size(6.dp).background(BEPrimary, RoundedCornerShape(99.dp))
-                                            )
+                                            Box(Modifier.size(6.dp).background(BEPrimary, RoundedCornerShape(99.dp)))
                                             Spacer(Modifier.width(8.dp))
                                             Text(
                                                 "${s["title"] ?: "Experiencia"} · $personas persona${if (personas != 1) "s" else ""}",
@@ -175,7 +156,6 @@ fun MisReservasScreen(navController: NavController) {
                                     }
                                 }
 
-                                // Cancellation reason
                                 val motivo = r["motivoCancelacion"] as? String
                                 if (!motivo.isNullOrBlank()) {
                                     Spacer(Modifier.height(8.dp))
@@ -185,7 +165,6 @@ fun MisReservasScreen(navController: NavController) {
                                     }
                                 }
 
-                                // Total
                                 val total = when (val t = r["total"]) {
                                     is Double -> t
                                     is Long   -> t.toDouble()
@@ -195,22 +174,17 @@ fun MisReservasScreen(navController: NavController) {
                                     Spacer(Modifier.height(10.dp))
                                     HorizontalDivider(color = BEBorder)
                                     Spacer(Modifier.height(8.dp))
-                                    Row(
-                                        Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically) {
                                         Text("Total", style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.SemiBold, color = BETextSecond)
-                                        Text(
-                                            "${"$"}${"%,.0f".format(total).replace(",", ".")}",
+                                        Text("${"$"}${"%,.0f".format(total).replace(",", ".")}",
                                             style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Bold, color = BEPrimary
-                                        )
+                                            fontWeight = FontWeight.Bold, color = BEPrimary)
                                     }
                                 }
 
-                                // Pay button — only for confirmed reservations
+                                // Pagar — solo confirmadas
                                 if (estado == "confirmada") {
                                     Spacer(Modifier.height(10.dp))
                                     Button(
@@ -224,7 +198,30 @@ fun MisReservasScreen(navController: NavController) {
                                     }
                                 }
 
-                                // Review button — only for eligible states
+                                // Editar pasajeros — solo pendientes
+                                if (estado == "pendiente" && svcs != null) {
+                                    Spacer(Modifier.height(10.dp))
+                                    val serviciosList = svcs.filterIsInstance<Map<*, *>>().map { s ->
+                                        mapOf(
+                                            "id"       to (s["id"] as? String ?: ""),
+                                            "title"    to (s["title"] as? String ?: ""),
+                                            "price"    to (s["price"] ?: 0.0),
+                                            "personas" to (s["personas"] ?: 1L),
+                                            "image"    to (s["image"] as? String ?: ""),
+                                            "lat"      to (s["lat"] ?: 0.0),
+                                            "lng"      to (s["lng"] ?: 0.0)
+                                        )
+                                    }
+                                    OutlinedButton(
+                                        onClick = { pasajerosTarget = Pair(reservaId, serviciosList) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = BEWarning),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, BEWarning.copy(0.5f))
+                                    ) { Text("👥 Editar pasajeros", fontWeight = FontWeight.SemiBold) }
+                                }
+
+                                // Reseña
                                 if (canReview && svcs != null) {
                                     Spacer(Modifier.height(10.dp))
                                     val firstSvc = svcs.filterIsInstance<Map<*, *>>().firstOrNull()
@@ -236,10 +233,18 @@ fun MisReservasScreen(navController: NavController) {
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = BEStarColor),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, BEStarColor.copy(0.5f))
-                                    ) {
-                                        Text("★ Dejar reseña", fontWeight = FontWeight.SemiBold)
-                                    }
+                                    ) { Text("★ Dejar reseña", fontWeight = FontWeight.SemiBold) }
                                 }
+
+                                // Chat
+                                Spacer(Modifier.height(10.dp))
+                                OutlinedButton(
+                                    onClick = { navController.navigate("chat/$reservaId") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = BEPrimary),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, BEPrimary.copy(0.4f))
+                                ) { Text("💬 Chat con equipo", fontWeight = FontWeight.SemiBold) }
                             }
                         }
                     }
@@ -248,14 +253,81 @@ fun MisReservasScreen(navController: NavController) {
         }
     }
 
-    // Review dialog
     resenaTarget?.let { (rId, sId, title) ->
-        ResenaDialog(
-            reservaId = rId,
-            servicioId = sId,
-            servicioTitle = title,
-            onDismiss = { resenaTarget = null },
-            onSuccess = { resenaTarget = null }
+        ResenaDialog(reservaId = rId, servicioId = sId, servicioTitle = title,
+            onDismiss = { resenaTarget = null }, onSuccess = { resenaTarget = null })
+    }
+
+    pasajerosTarget?.let { (rId, servicios) ->
+        PasajerosDialog(
+            servicios = servicios,
+            onDismiss = { pasajerosTarget = null },
+            onConfirm = { actualizados ->
+                val nuevoTotal = actualizados.sumOf {
+                    val price = (it["price"] as? Number)?.toDouble() ?: 0.0
+                    val personas = (it["personas"] as? Number)?.toInt() ?: 1
+                    price * personas
+                }
+                vm.actualizarPasajeros(rId, actualizados, nuevoTotal)
+                pasajerosTarget = null
+            }
         )
     }
+}
+
+@Composable
+private fun PasajerosDialog(
+    servicios: List<Map<String, Any>>,
+    onDismiss: () -> Unit,
+    onConfirm: (List<Map<String, Any>>) -> Unit
+) {
+    var personasPorServicio by remember {
+        mutableStateOf(servicios.map { (it["personas"] as? Number)?.toInt() ?: 1 })
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = BESurface,
+        title = { Text("Editar pasajeros", fontWeight = FontWeight.Bold, color = BETextPrimary) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                servicios.forEachIndexed { i, svc ->
+                    val personas = personasPorServicio.getOrElse(i) { 1 }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text(svc["title"] as? String ?: "Experiencia",
+                            style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+                            color = BETextPrimary, modifier = Modifier.weight(1f))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = {
+                                if (personas > 1)
+                                    personasPorServicio = personasPorServicio.toMutableList().also { it[i] = personas - 1 }
+                            }) { Text("−", color = BEPrimary, fontWeight = FontWeight.Bold) }
+                            Text("$personas", fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp))
+                            IconButton(onClick = {
+                                personasPorServicio = personasPorServicio.toMutableList().also { it[i] = personas + 1 }
+                            }) { Text("+", color = BEPrimary, fontWeight = FontWeight.Bold) }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val actualizados = servicios.mapIndexed { i, svc ->
+                        svc.toMutableMap().apply {
+                            put("personas", personasPorServicio.getOrElse(i) { 1 }.toLong())
+                        }
+                    }
+                    onConfirm(actualizados)
+                },
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
+            ) { Text("Guardar", color = Color.White, fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar", color = BETextSecond) }
+        }
+    )
 }

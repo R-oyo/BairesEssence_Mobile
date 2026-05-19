@@ -20,6 +20,7 @@ import com.example.bairesessence.core.ui.screens.pagos.PagoDetalleScreen
 import com.example.bairesessence.core.ui.screens.pagos.PagosScreen
 import com.example.bairesessence.core.ui.screens.perfil.PerfilScreen
 import com.example.bairesessence.core.ui.screens.register.BairesEssenceRegister
+import com.example.bairesessence.core.ui.screens.chat.ChatScreen
 import com.example.bairesessence.core.ui.screens.reservas.MisReservasScreen
 import com.example.bairesessence.core.ui.screens.reservas.ReservaExitosaScreen
 import com.google.firebase.auth.FirebaseAuth
@@ -37,13 +38,15 @@ sealed class Screen(val route: String) {
     object Itinerary      : Screen("itinerary")
     object Pagos          : Screen("pagos")
     object PagoDetalle    : Screen("pago_detalle/{reservaId}")
+    object Chat           : Screen("chat/{reservaId}")
 }
 
 private val AUTH_ROUTES = setOf(Screen.Landing.route, Screen.Login.route, Screen.Register.route)
 private val PROTECTED_ROUTES = setOf(
     Screen.Home.route, Screen.Favoritos.route, Screen.Perfil.route,
     Screen.MisReservas.route, Screen.ReservaExitosa.route,
-    Screen.Itinerary.route, Screen.Pagos.route, "pago_detalle/{reservaId}"
+    Screen.Itinerary.route, Screen.Pagos.route, "pago_detalle/{reservaId}",
+    "chat/{reservaId}"
 )
 
 @Composable
@@ -90,6 +93,15 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         ) { back ->
             val id = back.arguments?.getString("reservaId") ?: return@composable
             PagoDetalleScreen(navController = navController, reservaId = id)
+        }
+
+        // ── Chat de reserva
+        composable(
+            route = Screen.Chat.route,
+            arguments = listOf(navArgument("reservaId") { type = NavType.StringType })
+        ) { back ->
+            val id = back.arguments?.getString("reservaId") ?: return@composable
+            ChatScreen(navController = navController, reservaId = id)
         }
 
         // ── Detalle de servicio (con carrito compartido)
