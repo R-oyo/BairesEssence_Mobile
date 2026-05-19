@@ -36,6 +36,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.firestore.FirebaseFirestore
 
 @Composable
 fun BairesEssenceLogin(navController: NavHostController) {
@@ -75,12 +76,43 @@ fun BairesEssenceLogin(navController: NavHostController) {
                     }
                     val credential = GoogleAuthProvider.getCredential(idToken, null)
                     auth?.signInWithCredential(credential)?.addOnCompleteListener { firebaseTask ->
-                        isLoading = false
                         if (firebaseTask.isSuccessful) {
-                            navController.navigate(Screen.Home.route) {
-                                popUpTo(Screen.Landing.route) { inclusive = true }
-                            }
+                            val uid = firebaseTask.result?.user?.uid ?: return@addOnCompleteListener
+                            val firebaseUser = firebaseTask.result?.user
+                            val ref = FirebaseFirestore.getInstance().collection("users").document(uid)
+                            ref.get()
+                                .addOnSuccessListener { doc ->
+                                    if (!doc.exists()) {
+                                        ref.set(mapOf(
+                                            "userId"   to uid,
+                                            "email"    to (firebaseUser?.email ?: ""),
+                                            "fullname" to (firebaseUser?.displayName ?: ""),
+                                            "fullName" to (firebaseUser?.displayName ?: ""),
+                                            "role"     to "user",
+                                            "activo"   to true
+                                        )).addOnCompleteListener {
+                                            isLoading = false
+                                            navController.navigate(Screen.Home.route) {
+                                                popUpTo(Screen.Landing.route) { inclusive = true }
+                                            }
+                                        }
+                                    } else {
+                                        val role = doc.getString("role") ?: "user"
+                                        val activo = doc.getBoolean("activo") ?: true
+                                        isLoading = false
+                                        when {
+                                            !activo -> { auth?.signOut(); errorMessage = "Tu cuenta está desactivada." }
+                                            role in listOf("admin", "seller") -> { auth?.signOut(); errorMessage = "Esta app es exclusiva para turistas." }
+                                            else -> navController.navigate(Screen.Home.route) { popUpTo(Screen.Landing.route) { inclusive = true } }
+                                        }
+                                    }
+                                }
+                                .addOnFailureListener {
+                                    isLoading = false
+                                    navController.navigate(Screen.Home.route) { popUpTo(Screen.Landing.route) { inclusive = true } }
+                                }
                         } else {
+                            isLoading = false
                             errorMessage = firebaseTask.exception?.message ?: "Error en la autenticación."
                         }
                     }
@@ -112,12 +144,25 @@ fun BairesEssenceLogin(navController: NavHostController) {
             isLoading = true
             auth?.signInWithEmailAndPassword(email, password)
                 ?.addOnCompleteListener { task ->
-                    isLoading = false
                     if (task.isSuccessful) {
-                        navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Landing.route) { inclusive = true }
-                        }
+                        val uid = task.result?.user?.uid ?: return@addOnCompleteListener
+                        FirebaseFirestore.getInstance().collection("users").document(uid).get()
+                            .addOnSuccessListener { doc ->
+                                val role = doc.getString("role") ?: "user"
+                                val activo = doc.getBoolean("activo") ?: true
+                                isLoading = false
+                                when {
+                                    !activo -> { auth.signOut(); errorMessage = "Tu cuenta está desactivada." }
+                                    role in listOf("admin", "seller") -> { auth.signOut(); errorMessage = "Esta app es exclusiva para turistas." }
+                                    else -> navController.navigate(Screen.Home.route) { popUpTo(Screen.Landing.route) { inclusive = true } }
+                                }
+                            }
+                            .addOnFailureListener {
+                                isLoading = false
+                                navController.navigate(Screen.Home.route) { popUpTo(Screen.Landing.route) { inclusive = true } }
+                            }
                     } else {
+                        isLoading = false
                         errorMessage = task.exception?.message ?: "Email o contraseña incorrectos."
                     }
                 }

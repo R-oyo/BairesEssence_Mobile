@@ -28,6 +28,7 @@ import com.example.bairesessence.core.navigation.Screen
 import com.example.bairesessence.core.ui.theme.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.userProfileChangeRequest
+import com.google.firebase.firestore.FirebaseFirestore
 
 @Composable
 fun BairesEssenceRegister(navController: NavHostController) {
@@ -59,14 +60,25 @@ fun BairesEssenceRegister(navController: NavHostController) {
                     auth?.createUserWithEmailAndPassword(email, password)
                         ?.addOnCompleteListener { task ->
                             if (task.isSuccessful) {
-                                // Save display name
+                                val uid = task.result?.user?.uid ?: return@addOnCompleteListener
                                 task.result?.user?.updateProfile(
                                     userProfileChangeRequest { displayName = name.trim() }
                                 )
-                                isLoading = false
-                                navController.navigate(Screen.Home.route) {
-                                    popUpTo(Screen.Landing.route) { inclusive = true }
-                                }
+                                FirebaseFirestore.getInstance().collection("users").document(uid)
+                                    .set(mapOf(
+                                        "userId"   to uid,
+                                        "email"    to email,
+                                        "fullname" to name.trim(),
+                                        "fullName" to name.trim(),
+                                        "role"     to "user",
+                                        "activo"   to true
+                                    ))
+                                    .addOnCompleteListener {
+                                        isLoading = false
+                                        navController.navigate(Screen.Home.route) {
+                                            popUpTo(Screen.Landing.route) { inclusive = true }
+                                        }
+                                    }
                             } else {
                                 isLoading = false
                                 errorMessage = task.exception?.message ?: "Error al crear la cuenta."

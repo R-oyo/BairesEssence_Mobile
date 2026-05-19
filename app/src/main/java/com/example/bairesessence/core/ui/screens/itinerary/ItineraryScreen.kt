@@ -66,7 +66,7 @@ fun ItineraryScreen(navController: NavController) {
     LaunchedEffect(user?.email) {
         if (user?.email != null) {
             runCatching {
-                reservas = FirestoreRepository.fetchReservasByUser(user.email!!)
+                reservas = FirestoreRepository.fetchReservasByUser(user.uid)
                     .filter { (it["checkin"] as? String ?: "") >= today }
                     .filter { (it["estado"] as? String) !in listOf("cancelada") }
             }

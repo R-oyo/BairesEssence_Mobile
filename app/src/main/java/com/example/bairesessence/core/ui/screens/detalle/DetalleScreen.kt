@@ -1,5 +1,7 @@
 package com.example.bairesessence.core.ui.screens.detalle
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -16,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -37,12 +40,14 @@ fun DetalleScreen(
     servicioId: String,
     carritoVm: CarritoViewModel = viewModel()
 ) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val user = FirebaseAuth.getInstance().currentUser
     var servicio by remember { mutableStateOf<Servicio?>(null) }
     var cargando by remember { mutableStateOf(true) }
     var personas by remember { mutableStateOf(1) }
     var esFavorito by remember { mutableStateOf(false) }
+    var reviews by remember { mutableStateOf(listOf<Map<String, Any>>()) }
     val carritoState by carritoVm.state.collectAsState()
     val enCarrito = carritoVm.estaEnCarrito(servicioId)
 
@@ -53,6 +58,7 @@ fun DetalleScreen(
                 servicioId in FirestoreRepository.fetchFavoritoIds(user.uid)
             } catch (e: Exception) { false }
         }
+        reviews = try { FirestoreRepository.fetchReviewsByServicio(servicioId) } catch (_: Exception) { emptyList() }
         cargando = false
     }
 
@@ -140,6 +146,21 @@ fun DetalleScreen(
                     Spacer(Modifier.height(16.dp))
                 }
 
+                if (s.tieneMapa) {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            val uri = Uri.parse("geo:${s.lat},${s.lng}?q=${s.lat},${s.lng}(${Uri.encode(s.title)})")
+                            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = BEPrimary),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, BEPrimary.copy(0.4f))
+                    ) { Text("📍 Ver ubicación en Maps", fontWeight = FontWeight.SemiBold) }
+                }
+
+                Spacer(Modifier.height(16.dp))
                 Text("Descripción", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(8.dp))
                 Text(s.description, style = MaterialTheme.typography.bodyMedium, color = BETextSecond)
@@ -154,6 +175,20 @@ fun DetalleScreen(
                             Text(s.incluye, style = MaterialTheme.typography.bodyMedium, color = BEPrimary)
                         }
                     }
+                }
+
+                if (s.whatsapp.isNotBlank()) {
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = {
+                            val uri = Uri.parse("https://wa.me/${s.whatsapp}")
+                            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF25D366)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF25D366).copy(0.5f))
+                    ) { Text("💬 Consultar por WhatsApp", fontWeight = FontWeight.SemiBold) }
                 }
 
                 // Selector de personas
@@ -179,6 +214,61 @@ fun DetalleScreen(
                             Text("Subtotal", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = BEPrimaryDark)
                             Text("$${"%,.0f".format(s.precio * personas).replace(",", ".")}",
                                 style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = BEPrimary)
+                        }
+                    }
+                }
+
+                // Reseñas
+                Spacer(Modifier.height(20.dp))
+                HorizontalDivider(color = BEBorder)
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Reseñas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    if (reviews.isNotEmpty()) {
+                        val avg = reviews.mapNotNull { (it["rating"] as? Number)?.toDouble() }.average()
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("★", color = BEStarColor, style = MaterialTheme.typography.bodyMedium)
+                            Spacer(Modifier.width(3.dp))
+                            Text("${"%.1f".format(avg)} (${reviews.size})",
+                                style = MaterialTheme.typography.bodySmall, color = BETextMuted)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                if (reviews.isEmpty()) {
+                    Text("Todavía no hay reseñas para esta experiencia.",
+                        style = MaterialTheme.typography.bodyMedium, color = BETextMuted)
+                } else {
+                    reviews.take(5).forEach { r ->
+                        val rVal = (r["rating"] as? Number)?.toInt()?.coerceIn(0, 5) ?: 0
+                        val comment = r["comentario"] as? String
+                        val author = (r["email"] as? String)?.substringBefore("@") ?: "Usuario"
+                        Card(
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = BESurfaceVar),
+                            elevation = CardDefaults.cardElevation(1.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(author, style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold, color = BETextPrimary)
+                                    Text("★".repeat(rVal) + "☆".repeat(5 - rVal),
+                                        color = BEStarColor, style = MaterialTheme.typography.bodySmall)
+                                }
+                                if (!comment.isNullOrBlank()) {
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(comment, style = MaterialTheme.typography.bodySmall, color = BETextSecond)
+                                }
+                            }
                         }
                     }
                 }

@@ -29,6 +29,17 @@ fun ResenaDialog(
     var comentario by remember { mutableStateOf("") }
     var enviando by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var yaRevisado by remember { mutableStateOf(false) }
+    var verificando by remember { mutableStateOf(true) }
+
+    LaunchedEffect(reservaId) {
+        if (user != null) {
+            yaRevisado = runCatching {
+                FirestoreRepository.hasUserReviewedReserva(user.uid, reservaId)
+            }.getOrDefault(false)
+        }
+        verificando = false
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -41,7 +52,20 @@ fun ResenaDialog(
             }
         },
         text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            if (verificando) {
+                Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = BEPrimary, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                }
+            } else if (yaRevisado) {
+                Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp), color = BEPrimary.copy(0.08f)) {
+                    Text(
+                        "Ya dejaste una reseña para esta reserva.",
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = BEPrimaryDark
+                    )
+                }
+            } else Column(modifier = Modifier.fillMaxWidth()) {
                 // Star picker
                 Text("Tu puntuación", style = MaterialTheme.typography.labelMedium,
                     color = BETextSecond, fontWeight = FontWeight.SemiBold)
@@ -90,32 +114,39 @@ fun ResenaDialog(
             }
         },
         confirmButton = {
-            Button(
-                onClick = {
-                    if (rating == 0) { error = "Elegí una puntuación."; return@Button }
-                    if (user == null) { error = "Necesitás sesión activa."; return@Button }
-                    enviando = true
-                    scope.launch {
-                        runCatching {
-                            FirestoreRepository.addResena(
-                                userId = user.uid,
-                                userEmail = user.email ?: "",
-                                reservaId = reservaId,
-                                servicioId = servicioId,
-                                rating = rating,
-                                comentario = comentario.trim()
-                            )
-                        }.onSuccess { onSuccess() }
-                         .onFailure { enviando = false; error = "Error al enviar. Intentá de nuevo." }
-                    }
-                },
-                enabled = !enviando,
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
-            ) {
-                if (enviando) CircularProgressIndicator(color = Color.White,
-                    modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                else Text("Enviar reseña", color = Color.White, fontWeight = FontWeight.Bold)
+            if (!verificando && !yaRevisado) {
+                Button(
+                    onClick = {
+                        if (rating == 0) { error = "Elegí una puntuación."; return@Button }
+                        if (user == null) { error = "Necesitás sesión activa."; return@Button }
+                        enviando = true
+                        scope.launch {
+                            runCatching {
+                                FirestoreRepository.addResena(
+                                    userId = user.uid,
+                                    userEmail = user.email ?: "",
+                                    reservaId = reservaId,
+                                    servicioId = servicioId,
+                                    rating = rating,
+                                    comentario = comentario.trim()
+                                )
+                            }.onSuccess { onSuccess() }
+                             .onFailure { enviando = false; error = "Error al enviar. Intentá de nuevo." }
+                        }
+                    },
+                    enabled = !enviando,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
+                ) {
+                    if (enviando) CircularProgressIndicator(color = Color.White,
+                        modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    else Text("Enviar reseña", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            } else if (yaRevisado) {
+                Button(onClick = onDismiss, shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)) {
+                    Text("Cerrar", color = Color.White, fontWeight = FontWeight.Bold)
+                }
             }
         },
         dismissButton = {

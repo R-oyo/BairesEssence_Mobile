@@ -37,6 +37,7 @@ object FirestoreRepository {
                 lng         = (d["lng"]    as? Number)?.toDouble() ?: 0.0,
                 incluye     = d["incluye"]     as? String ?: "",
                 activo      = d["activo"]      as? Boolean ?: true,
+                whatsapp    = d["whatsapp"]    as? String ?: "",
                 rating      = (d["rating"] as? Number)?.toDouble() ?: 4.5
             )
         }
@@ -148,6 +149,23 @@ object FirestoreRepository {
     suspend fun fetchUserRole(userId: String): String =
         db.collection("users").document(userId).get().await()
             .getString("role") ?: "turista"
+
+    suspend fun fetchReviewsByServicio(servicioId: String): List<Map<String, Any>> =
+        db.collection("reviews")
+            .whereEqualTo("servicioId", servicioId)
+            .get().await()
+            .documents.mapNotNull { doc ->
+                val d = doc.data?.toMutableMap() ?: return@mapNotNull null
+                d["id"] = doc.id
+                d
+            }
+            .sortedByDescending { (it["timestamp"] as? com.google.firebase.Timestamp)?.seconds }
+
+    suspend fun hasUserReviewedReserva(userId: String, reservaId: String): Boolean =
+        !db.collection("reviews")
+            .whereEqualTo("userId", userId)
+            .whereEqualTo("reservaId", reservaId)
+            .get().await().isEmpty
 
     suspend fun fetchAllReservas(): List<Map<String, Any>> =
         db.collection("reservas")

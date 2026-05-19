@@ -18,6 +18,7 @@ data class Servicio(
     val lng: Double = 0.0,
     val incluye: String = "",
     val activo: Boolean = true,
+    val whatsapp: String = "",
     val from: Timestamp? = null,
     val until: Timestamp? = null,
     val companyId: String = "",
