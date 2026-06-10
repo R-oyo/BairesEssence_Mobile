@@ -113,8 +113,8 @@ fun PagoDetalleScreen(navController: NavController, reservaId: String) {
             estado == "pagada" -> PagoExitosoContent(
                 modifier = Modifier.padding(innerPadding),
                 onVerReservas = {
-                    navController.navigate("pagos") {
-                        popUpTo("pagos") { inclusive = true }
+                    navController.navigate("mis_reservas") {
+                        popUpTo(0) { inclusive = true }
                     }
                 }
             )
