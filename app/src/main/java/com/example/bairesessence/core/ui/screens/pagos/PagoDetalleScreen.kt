@@ -20,17 +20,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.bairesessence.core.ui.theme.*
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.functions.FirebaseFunctions
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PagoDetalleScreen(navController: NavController, reservaId: String) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val functions = FirebaseFunctions.getInstance()
     val db = FirebaseFirestore.getInstance()
 
     var reserva by remember { mutableStateOf<Map<String, Any>?>(null) }
@@ -61,24 +65,43 @@ fun PagoDetalleScreen(navController: NavController, reservaId: String) {
             procesando = true
             error = null
             try {
-                val result = functions.getHttpsCallable("createMercadoPagoPreference")
-                    .call(mapOf("reservaId" to reservaId))
-                    .await()
-                val initPoint = (result.data as? Map<*, *>)?.get("initPoint") as? String
-                if (initPoint != null) {
-                    CustomTabsIntent.Builder()
-                        .setShowTitle(true)
-                        .build()
-                        .launchUrl(context, Uri.parse(initPoint))
-                } else {
-                    error = "No se pudo obtener el enlace de pago."
+                val user = FirebaseAuth.getInstance().currentUser
+                    ?: throw Exception("Sesión no activa.")
+                val idToken = user.getIdToken(false).await().token
+                    ?: throw Exception("No se pudo obtener el token.")
+
+                val initPoint = withContext(Dispatchers.IO) {
+                    val url = URL("$RAILWAY_BASE_URL/createMercadoPagoPreference")
+                    val conn = url.openConnection() as HttpURLConnection
+                    conn.requestMethod = "POST"
+                    conn.setRequestProperty("Content-Type", "application/json")
+                    conn.setRequestProperty("Authorization", "Bearer $idToken")
+                    conn.doOutput = true
+                    conn.outputStream.use { out ->
+                        out.write("""{"reservaId":"$reservaId"}""".toByteArray())
+                    }
+                    val code = conn.responseCode
+                    val body = (if (code == 200) conn.inputStream else conn.errorStream)
+                        .bufferedReader().readText()
+                    if (code != 200) throw Exception("Error $code: $body")
+                    JSONObject(body).getString("initPoint")
                 }
+
+                CustomTabsIntent.Builder()
+                    .setShowTitle(true)
+                    .build()
+                    .launchUrl(context, Uri.parse(initPoint))
             } catch (e: Exception) {
                 error = e.message ?: "Error al conectar con el sistema de pagos."
             } finally {
                 procesando = false
             }
         }
+    }
+
+    companion object {
+        // Reemplazar con la URL de Railway tras el deploy
+        const val RAILWAY_BASE_URL = "https://tu-app.railway.app"
     }
 
     Scaffold(
