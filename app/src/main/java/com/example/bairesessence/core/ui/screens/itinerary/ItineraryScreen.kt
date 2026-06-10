@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ import com.example.bairesessence.data.firebase.FirestoreRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -37,10 +39,12 @@ fun ItineraryScreen(navController: NavController) {
     val user = auth.currentUser
     val userId = user?.uid
     val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+    val scope = rememberCoroutineScope()
 
     val actividades = remember { mutableStateListOf<Actividad>() }
     var reservas by remember { mutableStateOf(listOf<Map<String, Any>>()) }
     var cargando by remember { mutableStateOf(true) }
+    var mostrarAgregarActividad by remember { mutableStateOf(false) }
 
     DisposableEffect(userId) {
         var reg: ListenerRegistration? = null
@@ -82,10 +86,10 @@ fun ItineraryScreen(navController: NavController) {
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { navController.navigate("home") },
+                onClick = { mostrarAgregarActividad = true },
                 containerColor = BEPrimary
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Agregar experiencia", tint = Color.White)
+                Icon(Icons.Default.Add, contentDescription = "Agregar actividad", tint = Color.White)
             }
         },
         bottomBar = { BottomBar(navController) },
@@ -101,7 +105,7 @@ fun ItineraryScreen(navController: NavController) {
                     Text("📅", style = MaterialTheme.typography.displayMedium)
                     Spacer(Modifier.height(8.dp))
                     Text("Aún no tenés actividades", style = MaterialTheme.typography.titleMedium, color = BETextSecondary)
-                    Text("Tocá + para explorar experiencias", style = MaterialTheme.typography.bodyMedium, color = BETextMuted)
+                    Text("Tocá + para agregar una actividad", style = MaterialTheme.typography.bodyMedium, color = BETextMuted)
                 }
             }
         } else {
@@ -173,14 +177,14 @@ fun ItineraryScreen(navController: NavController) {
                 // ── Actividades manuales
                 if (actividades.isNotEmpty()) {
                     item {
-                        Text("Actividades",
+                        Text("Mis actividades",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = BETextPrimary,
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
                     }
-                    items(actividades) { act ->
+                    items(actividades, key = { it.id }) { act ->
                         Row(modifier = Modifier.fillMaxWidth()) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(32.dp)) {
                                 Box(Modifier.size(10.dp).clip(CircleShape).background(BEPrimary))
@@ -193,10 +197,31 @@ fun ItineraryScreen(navController: NavController) {
                                 colors = CardDefaults.cardColors(containerColor = BESurface),
                                 elevation = CardDefaults.cardElevation(2.dp)
                             ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    if (act.time.isNotBlank()) Text(act.time, style = MaterialTheme.typography.labelSmall, color = BEPrimary, fontWeight = FontWeight.Bold)
-                                    Text(act.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                                    if (act.description.isNotBlank()) Text(act.description, style = MaterialTheme.typography.bodySmall, color = BETextSecondary)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        if (act.time.isNotBlank()) Text(act.time, style = MaterialTheme.typography.labelSmall, color = BEPrimary, fontWeight = FontWeight.Bold)
+                                        Text(act.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                        if (act.description.isNotBlank()) Text(act.description, style = MaterialTheme.typography.bodySmall, color = BETextSecondary)
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            if (userId != null) {
+                                                scope.launch {
+                                                    runCatching {
+                                                        db.collection("users").document(userId)
+                                                            .collection("itinerary").document(act.id).delete()
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(Icons.Default.Delete, null, tint = BETextMuted, modifier = Modifier.size(16.dp))
+                                    }
                                 }
                             }
                         }
@@ -205,4 +230,82 @@ fun ItineraryScreen(navController: NavController) {
             }
         }
     }
+
+    if (mostrarAgregarActividad && userId != null) {
+        AgregarActividadDialog(
+            onDismiss = { mostrarAgregarActividad = false },
+            onConfirm = { time, title, description ->
+                scope.launch {
+                    runCatching {
+                        db.collection("users").document(userId).collection("itinerary")
+                            .add(mapOf("time" to time, "title" to title, "description" to description))
+                    }
+                    mostrarAgregarActividad = false
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun AgregarActividadDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (time: String, title: String, description: String) -> Unit
+) {
+    var time by remember { mutableStateOf("") }
+    var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = BESurface,
+        title = { Text("Nueva actividad", fontWeight = FontWeight.Bold, color = BETextPrimary) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                error?.let { Text(it, color = BEError, style = MaterialTheme.typography.bodySmall) }
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it; error = null },
+                    label = { Text("Título *") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder)
+                )
+                OutlinedTextField(
+                    value = time,
+                    onValueChange = { time = it },
+                    label = { Text("Horario (ej: 10:00 hs)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder)
+                )
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Descripción (opcional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    minLines = 2,
+                    maxLines = 3,
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (title.isBlank()) { error = "El título es obligatorio."; return@Button }
+                    onConfirm(time.trim(), title.trim(), description.trim())
+                },
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
+            ) { Text("Agregar", color = Color.White, fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar", color = BETextSecond) }
+        }
+    )
 }
