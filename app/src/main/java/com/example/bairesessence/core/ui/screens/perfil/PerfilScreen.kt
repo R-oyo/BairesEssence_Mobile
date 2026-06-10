@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.bairesessence.core.navigation.Screen
+import com.example.bairesessence.core.ui.components.BottomBar
 import com.example.bairesessence.data.firebase.FirestoreRepository
 import kotlinx.coroutines.launch
 import com.example.bairesessence.core.ui.theme.*
@@ -98,6 +99,7 @@ fun PerfilScreen(navController: NavController) {
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BEDark)
             )
         },
+        bottomBar = { BottomBar(navController) },
         containerColor = BEBackground
     ) { innerPadding ->
         Column(
