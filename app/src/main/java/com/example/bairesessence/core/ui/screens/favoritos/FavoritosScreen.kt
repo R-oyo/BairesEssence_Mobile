@@ -55,6 +55,7 @@ fun FavoritosScreen(navController: NavController) {
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BEDark)
             )
         },
+        bottomBar = { BottomBar(navController) },
         containerColor = BEBackground
     ) { innerPadding ->
         when {
