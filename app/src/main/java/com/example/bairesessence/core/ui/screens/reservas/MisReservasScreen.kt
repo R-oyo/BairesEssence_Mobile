@@ -109,7 +109,7 @@ fun MisReservasScreen(navController: NavController) {
                     val estado = r["estado"] as? String ?: "pendiente"
                     val svcs = r["servicios"] as? List<*>
                     val color = estadoColor(estado)
-                    val canReview = estado in listOf("confirmada", "pagada", "finalizada")
+                    val canReview = estado in listOf("pagada", "finalizada")
 
                     Card(
                         shape = RoundedCornerShape(14.dp),
