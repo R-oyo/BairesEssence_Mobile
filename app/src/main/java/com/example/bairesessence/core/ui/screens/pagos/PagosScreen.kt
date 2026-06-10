@@ -5,7 +5,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,26 +29,23 @@ fun PagosScreen(navController: NavController) {
     val auth = FirebaseAuth.getInstance()
     val db = FirebaseFirestore.getInstance()
     val user = auth.currentUser
-    val scope = rememberCoroutineScope()
 
     var reservas by remember { mutableStateOf(listOf<Map<String, Any>>()) }
     var cargando by remember { mutableStateOf(true) }
 
     LaunchedEffect(user?.uid) {
         if (user?.uid != null) {
-            scope.launch {
-                try {
-                    val snap = db.collection("reservas").whereEqualTo("userId", user.uid).get().await()
-                    reservas = snap.documents.mapNotNull { doc ->
-                        val d = doc.data?.toMutableMap() ?: return@mapNotNull null
-                        if (!d.containsKey("estado")) d["estado"] = "pendiente"
-                        d["id"] = doc.id
-                        d
-                    }
-                } catch (e: Exception) { e.printStackTrace() }
-                cargando = false
-            }
-        } else { cargando = false }
+            try {
+                val snap = db.collection("reservas").whereEqualTo("userId", user.uid).get().await()
+                reservas = snap.documents.mapNotNull { doc ->
+                    val d = doc.data?.toMutableMap() ?: return@mapNotNull null
+                    if (!d.containsKey("estado")) d["estado"] = "pendiente"
+                    d["id"] = doc.id
+                    d
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+        cargando = false
     }
 
     val estadoColor = { estado: String -> when (estado) {
