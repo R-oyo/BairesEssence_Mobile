@@ -279,16 +279,14 @@ fun DetalleScreen(
         }
 
         // Botón flotante agregar al carrito
-        Box(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+        Column(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
             .background(BESurface).padding(16.dp)) {
             if (s.tienePrecio) {
-                Column {
-                    Text("Desde", style = MaterialTheme.typography.labelSmall, color = BETextSecond)
-                    Text(s.precioFormateado, style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold, color = BETextPrimary)
-                    Text("por persona", style = MaterialTheme.typography.labelSmall, color = BETextSecond)
-                    Spacer(Modifier.height(8.dp))
-                }
+                Text("Desde", style = MaterialTheme.typography.labelSmall, color = BETextSecond)
+                Text(s.precioFormateado, style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold, color = BETextPrimary)
+                Text("por persona", style = MaterialTheme.typography.labelSmall, color = BETextSecond)
+                Spacer(Modifier.height(8.dp))
             }
 
             if (!enCarrito) {
@@ -301,7 +299,7 @@ fun DetalleScreen(
                         ))
                         navController.popBackStack()
                     },
-                    modifier = Modifier.fillMaxWidth().height(52.dp).align(Alignment.BottomCenter),
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
                 ) {
@@ -310,7 +308,7 @@ fun DetalleScreen(
             } else {
                 OutlinedButton(
                     onClick = { carritoVm.quitarItem(s.id); navController.popBackStack() },
-                    modifier = Modifier.fillMaxWidth().height(52.dp).align(Alignment.BottomCenter),
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = BEError)
                 ) {
