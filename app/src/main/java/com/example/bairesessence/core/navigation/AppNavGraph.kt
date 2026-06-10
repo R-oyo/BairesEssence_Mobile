@@ -17,7 +17,6 @@ import com.example.bairesessence.core.ui.screens.itinerary.ItineraryScreen
 import com.example.bairesessence.core.ui.screens.landing.LandingScreen
 import com.example.bairesessence.core.ui.screens.login.BairesEssenceLogin
 import com.example.bairesessence.core.ui.screens.pagos.PagoDetalleScreen
-import com.example.bairesessence.core.ui.screens.pagos.PagosScreen
 import com.example.bairesessence.core.ui.screens.perfil.PerfilScreen
 import com.example.bairesessence.core.ui.screens.register.BairesEssenceRegister
 import com.example.bairesessence.core.ui.screens.chat.ChatScreen
@@ -36,7 +35,6 @@ sealed class Screen(val route: String) {
     object ReservaExitosa : Screen("reserva_exitosa")
     object Detalle        : Screen("detalle/{servicioId}")
     object Itinerary      : Screen("itinerary")
-    object Pagos          : Screen("pagos")
     object PagoDetalle    : Screen("pago_detalle/{reservaId}")
     object Chat           : Screen("chat/{reservaId}")
 }
@@ -45,7 +43,7 @@ private val AUTH_ROUTES = setOf(Screen.Landing.route, Screen.Login.route, Screen
 private val PROTECTED_ROUTES = setOf(
     Screen.Home.route, Screen.Favoritos.route, Screen.Perfil.route,
     Screen.MisReservas.route, Screen.ReservaExitosa.route,
-    Screen.Itinerary.route, Screen.Pagos.route, "pago_detalle/{reservaId}",
+    Screen.Itinerary.route, "pago_detalle/{reservaId}",
     "chat/{reservaId}"
 )
 
@@ -84,7 +82,6 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         composable(Screen.MisReservas.route) { MisReservasScreen(navController) }
         composable(Screen.ReservaExitosa.route) { ReservaExitosaScreen(navController) }
         composable(Screen.Itinerary.route) { ItineraryScreen(navController) }
-        composable(Screen.Pagos.route)    { PagosScreen(navController) }
 
         // ── Pago de una reserva (MercadoPago)
         composable(
