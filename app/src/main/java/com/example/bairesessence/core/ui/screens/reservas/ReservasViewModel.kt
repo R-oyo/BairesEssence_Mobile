@@ -23,6 +23,11 @@ class ReservasViewModel : ViewModel() {
     private val _userRole = MutableStateFlow("turista")
     val userRole: StateFlow<String> = _userRole.asStateFlow()
 
+    private val _mutacionError = MutableStateFlow<String?>(null)
+    val mutacionError: StateFlow<String?> = _mutacionError.asStateFlow()
+
+    fun clearMutacionError() { _mutacionError.value = null }
+
     private var currentUserId: String? = null
 
     fun cargar(uid: String) {
@@ -60,33 +65,37 @@ class ReservasViewModel : ViewModel() {
                         } else r
                     }
                 }
-            }
+            }.onFailure { _mutacionError.value = "No se pudieron actualizar los pasajeros. Intentá de nuevo." }
         }
     }
 
     fun cancelarReserva(reservaId: String) {
         viewModelScope.launch {
-            runCatching { FirestoreRepository.cancelarReserva(reservaId) }.onSuccess {
-                _reservas.update { lista ->
-                    lista.map { r ->
-                        if (r["id"] == reservaId) r.toMutableMap().apply { put("estado", "cancelada") } else r
+            runCatching { FirestoreRepository.cancelarReserva(reservaId) }
+                .onSuccess {
+                    _reservas.update { lista ->
+                        lista.map { r ->
+                            if (r["id"] == reservaId) r.toMutableMap().apply { put("estado", "cancelada") } else r
+                        }
                     }
                 }
-            }
+                .onFailure { _mutacionError.value = "No se pudo cancelar la reserva. Intentá de nuevo." }
         }
     }
 
     fun actualizarFechas(reservaId: String, checkin: String, checkout: String) {
         viewModelScope.launch {
-            runCatching { FirestoreRepository.actualizarFechasReserva(reservaId, checkin, checkout) }.onSuccess {
-                _reservas.update { lista ->
-                    lista.map { r ->
-                        if (r["id"] == reservaId) r.toMutableMap().apply {
-                            put("checkin", checkin); put("checkout", checkout)
-                        } else r
+            runCatching { FirestoreRepository.actualizarFechasReserva(reservaId, checkin, checkout) }
+                .onSuccess {
+                    _reservas.update { lista ->
+                        lista.map { r ->
+                            if (r["id"] == reservaId) r.toMutableMap().apply {
+                                put("checkin", checkin); put("checkout", checkout)
+                            } else r
+                        }
                     }
                 }
-            }
+                .onFailure { _mutacionError.value = "No se pudieron actualizar las fechas. Intentá de nuevo." }
         }
     }
 }

@@ -29,6 +29,16 @@ fun MisReservasScreen(navController: NavController) {
     val fetchError by vm.fetchError.collectAsState()
     val userRole by vm.userRole.collectAsState()
 
+    val mutacionError by vm.mutacionError.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(mutacionError) {
+        mutacionError?.let {
+            snackbarHostState.showSnackbar(it)
+            vm.clearMutacionError()
+        }
+    }
+
     var resenaTarget by remember { mutableStateOf<Triple<String, String, String>?>(null) }
     var pasajerosTarget by remember { mutableStateOf<Pair<String, List<Map<String, Any>>>?>(null) }
     var cancelarTarget by remember { mutableStateOf<String?>(null) }
@@ -58,6 +68,7 @@ fun MisReservasScreen(navController: NavController) {
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
