@@ -15,15 +15,3 @@ data class ItemCarrito(
     val subtotalFormateado: String get() = "$${"%,.0f".format(subtotal).replace(",", ".")}"
 }
 
-data class Reserva(
-    val id: String = "",
-    val fullname: String = "",
-    val email: String = "",
-    val checkin: String = "",
-    val checkout: String = "",
-    val personas: Int = 1,
-    val estado: String = "pendiente",
-    val motivoCancelacion: String = "",
-    val total: Double = 0.0,
-    val servicios: List<Map<String, Any>> = emptyList()
-)
