@@ -388,13 +388,12 @@ private fun PasajerosDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val actualizados = servicios.filterIndexed { i, _ -> i !in eliminados }
-                        .mapIndexed { _, svc ->
-                            val i = servicios.indexOf(svc)
-                            svc.toMutableMap().apply {
-                                put("personas", personasPorServicio.getOrElse(i) { 1 }.toLong())
-                            }
+                    val indicesValidos = servicios.indices.filter { i -> i !in eliminados }
+                    val actualizados = indicesValidos.map { originalIdx ->
+                        servicios[originalIdx].toMutableMap().apply {
+                            put("personas", personasPorServicio.getOrElse(originalIdx) { 1 }.toLong())
                         }
+                    }
                     onConfirm(actualizados)
                 },
                 enabled = servicios.indices.any { it !in eliminados },
