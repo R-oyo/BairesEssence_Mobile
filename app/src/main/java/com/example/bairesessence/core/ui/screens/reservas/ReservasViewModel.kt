@@ -20,9 +20,6 @@ class ReservasViewModel : ViewModel() {
     private val _fetchError = MutableStateFlow(false)
     val fetchError: StateFlow<Boolean> = _fetchError.asStateFlow()
 
-    private val _userRole = MutableStateFlow("turista")
-    val userRole: StateFlow<String> = _userRole.asStateFlow()
-
     private val _mutacionError = MutableStateFlow<String?>(null)
     val mutacionError: StateFlow<String?> = _mutacionError.asStateFlow()
 
@@ -36,13 +33,7 @@ class ReservasViewModel : ViewModel() {
             _cargando.value = true
             _fetchError.value = false
             try {
-                val role = FirestoreRepository.fetchUserRole(uid)
-                _userRole.value = role
-                _reservas.value = if (role in listOf("admin", "seller")) {
-                    FirestoreRepository.fetchAllReservas()
-                } else {
-                    FirestoreRepository.fetchReservasByUser(uid)
-                }
+                _reservas.value = FirestoreRepository.fetchReservasByUser(uid)
             } catch (e: Exception) {
                 _fetchError.value = true
             }

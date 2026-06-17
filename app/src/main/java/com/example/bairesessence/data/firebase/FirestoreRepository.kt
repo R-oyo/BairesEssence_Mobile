@@ -49,13 +49,6 @@ object FirestoreRepository {
             .get().await()
             .documents.mapNotNull { it.toServicio() }
 
-    suspend fun fetchServiciosByCategoria(cat: String): List<Servicio> =
-        db.collection("servicios")
-            .whereEqualTo("activo", true)
-            .whereEqualTo("categoria", cat)
-            .get().await()
-            .documents.mapNotNull { it.toServicio() }
-
     suspend fun fetchServicioById(id: String): Servicio? {
         val doc = db.collection("servicios").document(id).get().await()
         return doc.toServicio()
@@ -162,10 +155,6 @@ object FirestoreRepository {
         ).await()
     }
 
-    suspend fun fetchUserRole(userId: String): String =
-        db.collection("users").document(userId).get().await()
-            .getString("role") ?: "turista"
-
     suspend fun sendMensaje(reservaId: String, senderId: String, senderEmail: String, texto: String) {
         db.collection("reservas").document(reservaId)
             .collection("mensajes")
@@ -217,17 +206,6 @@ object FirestoreRepository {
             .whereEqualTo("userId", userId)
             .whereEqualTo("reservaId", reservaId)
             .get().await().isEmpty
-
-    suspend fun fetchAllReservas(): List<Map<String, Any>> =
-        db.collection("reservas")
-            .get().await()
-            .documents.mapNotNull { doc ->
-                val d = doc.data?.toMutableMap() ?: return@mapNotNull null
-                if (!d.containsKey("estado")) d["estado"] = "pendiente"
-                d["id"] = doc.id
-                d
-            }
-            .sortedByDescending { (it["timestamp"] as? com.google.firebase.Timestamp)?.seconds }
 
     suspend fun fetchReservasByUser(userId: String): List<Map<String, Any>> =
         db.collection("reservas")

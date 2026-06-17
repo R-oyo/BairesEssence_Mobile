@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.bairesessence.core.ui.components.BottomBar
 import com.example.bairesessence.core.ui.components.ServicioCard
 import com.example.bairesessence.core.ui.theme.*
 import com.example.bairesessence.data.firebase.FirestoreRepository

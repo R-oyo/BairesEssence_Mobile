@@ -97,13 +97,13 @@ fun BairesEssenceLogin(navController: NavHostController) {
                                             }
                                         }
                                     } else {
-                                        val role = doc.getString("role") ?: "user"
                                         val activo = doc.getBoolean("activo") ?: true
                                         isLoading = false
-                                        when {
-                                            !activo -> { auth?.signOut(); errorMessage = "Tu cuenta está desactivada." }
-                                            role in listOf("admin", "seller") -> { auth?.signOut(); errorMessage = "Esta app es exclusiva para turistas." }
-                                            else -> navController.navigate(Screen.Home.route) { popUpTo(Screen.Landing.route) { inclusive = true } }
+                                        if (!activo) {
+                                            auth?.signOut()
+                                            errorMessage = "Tu cuenta está desactivada."
+                                        } else {
+                                            navController.navigate(Screen.Home.route) { popUpTo(Screen.Landing.route) { inclusive = true } }
                                         }
                                     }
                                 }
@@ -148,13 +148,13 @@ fun BairesEssenceLogin(navController: NavHostController) {
                         val uid = task.result?.user?.uid ?: return@addOnCompleteListener
                         FirebaseFirestore.getInstance().collection("users").document(uid).get()
                             .addOnSuccessListener { doc ->
-                                val role = doc.getString("role") ?: "user"
                                 val activo = doc.getBoolean("activo") ?: true
                                 isLoading = false
-                                when {
-                                    !activo -> { auth.signOut(); errorMessage = "Tu cuenta está desactivada." }
-                                    role in listOf("admin", "seller") -> { auth.signOut(); errorMessage = "Esta app es exclusiva para turistas." }
-                                    else -> navController.navigate(Screen.Home.route) { popUpTo(Screen.Landing.route) { inclusive = true } }
+                                if (!activo) {
+                                    auth.signOut()
+                                    errorMessage = "Tu cuenta está desactivada."
+                                } else {
+                                    navController.navigate(Screen.Home.route) { popUpTo(Screen.Landing.route) { inclusive = true } }
                                 }
                             }
                             .addOnFailureListener {

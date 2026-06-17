@@ -79,6 +79,7 @@ fun PerfilScreen(navController: NavController) {
                     confirmadas = snap.documents.count { (it.getString("estado") ?: "") in listOf("confirmada", "pagada", "finalizada") }
                     pendientes = snap.documents.count { it.getString("estado") == "pendiente" }
                 }
+                .addOnFailureListener { /* stats stay at 0 on error */ }
         } else { cargando = false }
     }
 

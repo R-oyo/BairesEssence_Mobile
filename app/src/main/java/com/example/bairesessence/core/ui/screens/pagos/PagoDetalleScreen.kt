@@ -30,6 +30,8 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
+private const val RAILWAY_BASE_URL = "https://tu-app.railway.app"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PagoDetalleScreen(navController: NavController, reservaId: String) {
@@ -97,11 +99,6 @@ fun PagoDetalleScreen(navController: NavController, reservaId: String) {
                 procesando = false
             }
         }
-    }
-
-    companion object {
-        // Reemplazar con la URL de Railway tras el deploy
-        const val RAILWAY_BASE_URL = "https://tu-app.railway.app"
     }
 
     Scaffold(

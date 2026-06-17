@@ -27,8 +27,6 @@ fun MisReservasScreen(navController: NavController) {
     val reservas by vm.reservas.collectAsState()
     val cargando by vm.cargando.collectAsState()
     val fetchError by vm.fetchError.collectAsState()
-    val userRole by vm.userRole.collectAsState()
-
     val mutacionError by vm.mutacionError.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -72,10 +70,7 @@ fun MisReservasScreen(navController: NavController) {
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        if (userRole in listOf("admin", "seller")) "Todas las reservas" else "Mis Reservas",
-                        fontWeight = FontWeight.SemiBold, color = Color.White
-                    )
+                    Text("Mis Reservas", fontWeight = FontWeight.SemiBold, color = Color.White)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BEDark)
             )

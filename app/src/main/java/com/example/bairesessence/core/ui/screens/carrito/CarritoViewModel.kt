@@ -43,7 +43,7 @@ class CarritoViewModel : ViewModel() {
 
     fun estaEnCarrito(servicioId: String) = _state.value.items.any { it.servicioId == servicioId }
 
-    fun limpiar() { _state.value = CarritoState() }
+    fun limpiar() { _state.update { it.copy(items = emptyList()) } }
 
     val total: Double get() = _state.value.items.sumOf { it.subtotal }
 }
