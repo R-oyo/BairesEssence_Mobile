@@ -14,3 +14,24 @@
 .cxx
 local.properties
 /.claude/settings.local.json
+
+# Archivos de sesiones QA
+qa_*.png
+qa_*.xml
+screenshot_*.png
+uidump_*.xml
+window_dump*.xml
+badge_verify.png
+dump_seller*.xml
+dump_badge*.xml
+
+# Logs y outputs de build/QA
+build_output*.txt
+build_qa.txt
+logcat_*.txt
+
+# Node modules del backend
+functions/node_modules/
+
+# Archivos temporales de IDE
+.idea/markdown.xml
