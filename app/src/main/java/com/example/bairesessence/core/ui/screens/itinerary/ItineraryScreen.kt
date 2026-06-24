@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -81,6 +82,11 @@ fun ItineraryScreen(navController: NavController) {
         topBar = {
             TopAppBar(
                 title = { Text("Mi Itinerario", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = Color.White) },
+                actions = {
+                    IconButton(onClick = { navController.navigate("mapa_filtrado/itinerario") }) {
+                        Icon(Icons.Default.Map, "Ver ruta en mapa", tint = Color.White)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BEDark)
             )
         },

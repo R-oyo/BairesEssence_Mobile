@@ -96,8 +96,19 @@ fun FavoritosScreen(navController: NavController) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
-                    Text("${favoritos.size} guardada${if (favoritos.size != 1) "s" else ""}",
-                        style = MaterialTheme.typography.bodySmall, color = BETextMuted)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "${favoritos.size} guardada${if (favoritos.size != 1) "s" else ""}",
+                            style = MaterialTheme.typography.bodySmall, color = BETextMuted
+                        )
+                        TextButton(onClick = { navController.navigate("mapa_filtrado/favoritos") }) {
+                            Text("Ver en mapa 🗺️", color = BEPrimary, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 }
                 items(favoritos, key = { it.id }) { servicio ->
                     ServicioCard(

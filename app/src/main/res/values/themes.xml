@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.BairesEssence" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.BairesEssence" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/be_dark</item>
+    </style>
 </resources>

@@ -16,15 +16,20 @@ import com.example.bairesessence.core.ui.screens.home.MainScreen
 import com.example.bairesessence.core.ui.screens.itinerary.ItineraryScreen
 import com.example.bairesessence.core.ui.screens.landing.LandingScreen
 import com.example.bairesessence.core.ui.screens.login.BairesEssenceLogin
+import com.example.bairesessence.core.ui.screens.mapa.MapaScreen
 import com.example.bairesessence.core.ui.screens.pagos.PagoDetalleScreen
+import com.example.bairesessence.core.ui.screens.paquetes.PaqueteDetalleScreen
+import com.example.bairesessence.core.ui.screens.paquetes.PaquetesScreen
 import com.example.bairesessence.core.ui.screens.perfil.PerfilScreen
 import com.example.bairesessence.core.ui.screens.register.BairesEssenceRegister
 import com.example.bairesessence.core.ui.screens.chat.ChatScreen
 import com.example.bairesessence.core.ui.screens.reservas.MisReservasScreen
 import com.example.bairesessence.core.ui.screens.reservas.ReservaExitosaScreen
+import com.example.bairesessence.core.ui.screens.splash.SplashScreen
 import com.google.firebase.auth.FirebaseAuth
 
 sealed class Screen(val route: String) {
+    object Splash         : Screen("splash")
     object Landing        : Screen("landing")
     object Login          : Screen("login")
     object Register       : Screen("register")
@@ -37,6 +42,10 @@ sealed class Screen(val route: String) {
     object Itinerary      : Screen("itinerary")
     object PagoDetalle    : Screen("pago_detalle/{reservaId}")
     object Chat           : Screen("chat/{reservaId}")
+    object Mapa           : Screen("mapa")
+    object MapaFiltrado   : Screen("mapa_filtrado/{filter}")
+    object Paquetes       : Screen("paquetes")
+    object PaqueteDetalle : Screen("paquete_detalle/{paqueteId}")
 }
 
 private val AUTH_ROUTES = setOf(Screen.Landing.route, Screen.Login.route, Screen.Register.route)
@@ -44,7 +53,8 @@ private val PROTECTED_ROUTES = setOf(
     Screen.Home.route, Screen.Favoritos.route, Screen.Perfil.route,
     Screen.MisReservas.route, Screen.ReservaExitosa.route,
     Screen.Itinerary.route, "pago_detalle/{reservaId}",
-    "chat/{reservaId}"
+    "chat/{reservaId}", "mapa", "mapa_filtrado/{filter}",
+    "paquetes", "paquete_detalle/{paqueteId}"
 )
 
 @Composable
@@ -52,7 +62,6 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
     val carritoVm: CarritoViewModel = viewModel()
 
     val auth = FirebaseAuth.getInstance()
-    val start = if (auth.currentUser != null) Screen.Home.route else Screen.Landing.route
 
     DisposableEffect(Unit) {
         val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
@@ -66,7 +75,10 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         onDispose { auth.removeAuthStateListener(listener) }
     }
 
-    NavHost(navController = navController, startDestination = start) {
+    NavHost(navController = navController, startDestination = Screen.Splash.route) {
+
+        // ── Splash
+        composable(Screen.Splash.route) { SplashScreen(navController) }
 
         // ── Auth
         composable(Screen.Landing.route)  { LandingScreen(navController) }
@@ -108,6 +120,25 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         ) { back ->
             val id = back.arguments?.getString("servicioId") ?: return@composable
             DetalleScreen(navController = navController, servicioId = id, carritoVm = carritoVm)
+        }
+
+        // ── Mapa de actividades
+        composable(Screen.Mapa.route) { MapaScreen(navController) }
+        composable(
+            route = Screen.MapaFiltrado.route,
+            arguments = listOf(navArgument("filter") { type = NavType.StringType })
+        ) { back ->
+            MapaScreen(navController, filter = back.arguments?.getString("filter") ?: "all")
+        }
+
+        // ── Paquetes por agencia
+        composable(Screen.Paquetes.route) { PaquetesScreen(navController) }
+        composable(
+            route = Screen.PaqueteDetalle.route,
+            arguments = listOf(navArgument("paqueteId") { type = NavType.StringType })
+        ) { back ->
+            val id = back.arguments?.getString("paqueteId") ?: return@composable
+            PaqueteDetalleScreen(navController = navController, paqueteId = id, carritoVm = carritoVm)
         }
     }
 }

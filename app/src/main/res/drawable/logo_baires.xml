@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+    <!-- Green circle background -->
+    <path
+        android:fillColor="#00AA6C"
+        android:pathData="M100,20 A80,80 0 0,1 180,100 A80,80 0 0,1 100,180 A80,80 0 0,1 20,100 A80,80 0 0,1 100,20 Z" />
+
+    <!-- Obelisco — pyramid tip -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M95,72 L105,72 L100,50 Z" />
+
+    <!-- Obelisco — column body (slight taper) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M92,148 L108,148 L105,72 L95,72 Z" />
+
+    <!-- Obelisco — base platform step 1 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M83,148 L117,148 L117,155 L83,155 Z" />
+
+    <!-- Obelisco — base platform step 2 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M78,155 L122,155 L122,161 L78,161 Z" />
+
+</vector>

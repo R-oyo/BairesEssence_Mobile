@@ -30,7 +30,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-private const val RAILWAY_BASE_URL = "https://tu-app.railway.app"
+private const val BACKEND_BASE_URL = "" // Configurar cuando se elija host del backend
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,7 +73,7 @@ fun PagoDetalleScreen(navController: NavController, reservaId: String) {
                     ?: throw Exception("No se pudo obtener el token.")
 
                 val initPoint = withContext(Dispatchers.IO) {
-                    val url = URL("$RAILWAY_BASE_URL/createMercadoPagoPreference")
+                    val url = URL("$BACKEND_BASE_URL/createMercadoPagoPreference")
                     val conn = url.openConnection() as HttpURLConnection
                     conn.requestMethod = "POST"
                     conn.setRequestProperty("Content-Type", "application/json")
@@ -93,6 +93,45 @@ fun PagoDetalleScreen(navController: NavController, reservaId: String) {
                     .setShowTitle(true)
                     .build()
                     .launchUrl(context, Uri.parse(initPoint))
+            } catch (e: Exception) {
+                error = e.message ?: "Error al conectar con el sistema de pagos."
+            } finally {
+                procesando = false
+            }
+        }
+    }
+
+    fun iniciarPagoPayPal() {
+        scope.launch {
+            procesando = true
+            error = null
+            try {
+                val user = FirebaseAuth.getInstance().currentUser
+                    ?: throw Exception("Sesión no activa.")
+                val idToken = user.getIdToken(false).await().token
+                    ?: throw Exception("No se pudo obtener el token.")
+
+                val approveUrl = withContext(Dispatchers.IO) {
+                    val url = URL("$BACKEND_BASE_URL/createPaypalOrder")
+                    val conn = url.openConnection() as HttpURLConnection
+                    conn.requestMethod = "POST"
+                    conn.setRequestProperty("Content-Type", "application/json")
+                    conn.setRequestProperty("Authorization", "Bearer $idToken")
+                    conn.doOutput = true
+                    conn.outputStream.use { out ->
+                        out.write("""{"reservaId":"$reservaId"}""".toByteArray())
+                    }
+                    val code = conn.responseCode
+                    val body = (if (code == 200) conn.inputStream else conn.errorStream)
+                        .bufferedReader().readText()
+                    if (code != 200) throw Exception("Error $code: $body")
+                    JSONObject(body).getString("approveUrl")
+                }
+
+                CustomTabsIntent.Builder()
+                    .setShowTitle(true)
+                    .build()
+                    .launchUrl(context, Uri.parse(approveUrl))
             } catch (e: Exception) {
                 error = e.message ?: "Error al conectar con el sistema de pagos."
             } finally {
@@ -268,7 +307,7 @@ fun PagoDetalleScreen(navController: NavController, reservaId: String) {
                     }
                 }
 
-                // Botón pagar — solo visible para reservas confirmadas
+                // Botones de pago — solo visibles para reservas confirmadas
                 if (estado == "confirmada") {
                     Button(
                         onClick = ::iniciarPago,
@@ -295,8 +334,26 @@ fun PagoDetalleScreen(navController: NavController, reservaId: String) {
                         }
                     }
 
+                    Spacer(Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = ::iniciarPagoPayPal,
+                        enabled = !procesando,
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF003087)),
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF003087))
+                    ) {
+                        Text(
+                            "🅿  Pagar con PayPal",
+                            color = Color(0xFF003087),
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+
                     Text(
-                        "Serás redirigido al checkout seguro de MercadoPago. " +
+                        "Serás redirigido al checkout seguro de MercadoPago o PayPal. " +
                         "Tu reserva se actualizará automáticamente al completar el pago.",
                         style = MaterialTheme.typography.bodySmall,
                         color = BETextMuted

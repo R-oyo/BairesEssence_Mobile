@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.bairesessence.core.ui.components.BottomBar
+import com.example.bairesessence.core.ui.components.DateRangePickerDialog
 import com.example.bairesessence.core.ui.components.ResenaDialog
 import com.example.bairesessence.core.ui.theme.*
 import com.google.firebase.auth.FirebaseAuth
@@ -275,6 +276,16 @@ fun MisReservasScreen(navController: NavController) {
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = BEPrimary),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, BEPrimary.copy(0.4f))
                                 ) { Text("💬 Chat con equipo", fontWeight = FontWeight.SemiBold) }
+
+                                // Ver en mapa
+                                Spacer(Modifier.height(6.dp))
+                                OutlinedButton(
+                                    onClick = { navController.navigate("mapa_filtrado/reserva:$reservaId") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = BEPrimary),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, BEPrimary.copy(0.4f))
+                                ) { Text("🗺️ Ver en mapa", fontWeight = FontWeight.SemiBold) }
                             }
                         }
                     }
@@ -327,8 +338,15 @@ fun MisReservasScreen(navController: NavController) {
     }
 
     editFechasTarget?.let { (rId, ci, co) ->
-        EditFechasDialog(reservaId = rId, checkin = ci, checkout = co, vm = vm,
-            onDismiss = { editFechasTarget = null })
+        DateRangePickerDialog(
+            initialCheckin = ci,
+            initialCheckout = co,
+            onConfirm = { newCi, newCo ->
+                vm.actualizarFechas(rId, newCi, newCo)
+                editFechasTarget = null
+            },
+            onDismiss = { editFechasTarget = null }
+        )
     }
 }
 
@@ -413,55 +431,3 @@ private fun PasajerosDialog(
     )
 }
 
-@Composable
-private fun EditFechasDialog(
-    reservaId: String,
-    checkin: String,
-    checkout: String,
-    vm: ReservasViewModel,
-    onDismiss: () -> Unit
-) {
-    var newCheckin  by remember { mutableStateOf(checkin) }
-    var newCheckout by remember { mutableStateOf(checkout) }
-    var errorFechas by remember { mutableStateOf<String?>(null) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = BESurface,
-        title = { Text("Modificar fechas", fontWeight = FontWeight.Bold, color = BETextPrimary) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = newCheckin, onValueChange = { newCheckin = it; errorFechas = null },
-                    label = { Text("Llegada (yyyy-MM-dd)") },
-                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder)
-                )
-                OutlinedTextField(
-                    value = newCheckout, onValueChange = { newCheckout = it; errorFechas = null },
-                    label = { Text("Salida (yyyy-MM-dd)") },
-                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder)
-                )
-                errorFechas?.let { Text(it, color = BEError, style = MaterialTheme.typography.bodySmall) }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    when {
-                        newCheckin.isBlank()  -> errorFechas = "Ingresá la fecha de llegada."
-                        newCheckout.isBlank() -> errorFechas = "Ingresá la fecha de salida."
-                        newCheckout <= newCheckin -> errorFechas = "La salida debe ser posterior a la llegada."
-                        else -> { vm.actualizarFechas(reservaId, newCheckin, newCheckout); onDismiss() }
-                    }
-                },
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
-            ) { Text("Guardar", color = Color.White, fontWeight = FontWeight.Bold) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancelar", color = BETextSecond) }
-        }
-    )
-}

@@ -119,4 +119,84 @@ app.post("/webhook/mercadopago", async (req, res) => {
   res.status(200).send("OK");
 });
 
+// ── POST /createPaypalOrder
+// Body: { reservaId: string }
+// Header: Authorization: Bearer <firebase_id_token>
+app.post("/createPaypalOrder", verifyFirebaseToken, async (req, res) => {
+  const { reservaId } = req.body;
+  if (!reservaId) return res.status(400).json({ error: "reservaId requerido." });
+
+  const snap = await db.collection("reservas").doc(reservaId).get();
+  if (!snap.exists) return res.status(404).json({ error: "Reserva no encontrada." });
+
+  const reserva = snap.data();
+  const total = Math.max(1, Number(reserva.total) || 0);
+
+  const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
+  const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
+  const PAYPAL_BASE = process.env.PAYPAL_SANDBOX === "false"
+    ? "https://api-m.paypal.com"
+    : "https://api-m.sandbox.paypal.com";
+
+  try {
+    // 1. Obtener access token
+    const tokenRes = await axios.post(
+      `${PAYPAL_BASE}/v1/oauth2/token`,
+      "grant_type=client_credentials",
+      {
+        auth: { username: PAYPAL_CLIENT_ID, password: PAYPAL_CLIENT_SECRET },
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      }
+    );
+    const accessToken = tokenRes.data.access_token;
+
+    // 2. Crear orden — monto en USD (aproximado; ajustar según moneda real)
+    const amountUSD = (total / 1000).toFixed(2);
+    const orderRes = await axios.post(
+      `${PAYPAL_BASE}/v2/checkout/orders`,
+      {
+        intent: "CAPTURE",
+        purchase_units: [
+          {
+            reference_id: reservaId,
+            amount: { currency_code: "USD", value: amountUSD },
+            description: "Reserva BairesEssence",
+          },
+        ],
+        application_context: { user_action: "PAY_NOW" },
+      },
+      { headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" } }
+    );
+
+    const approveUrl = orderRes.data.links.find((l) => l.rel === "approve")?.href;
+    if (!approveUrl) throw new Error("No se encontró la URL de aprobación de PayPal.");
+
+    res.json({ approveUrl, orderId: orderRes.data.id });
+  } catch (err) {
+    console.error("PayPal API error:", err.response?.data || err.message);
+    res.status(500).json({ error: "Error al crear orden de pago con PayPal." });
+  }
+});
+
+// ── POST /paypalWebhook
+// Recibe evento PAYMENT.CAPTURE.COMPLETED y actualiza estado de reserva
+app.post("/paypalWebhook", async (req, res) => {
+  const { event_type, resource } = req.body;
+  if (event_type === "PAYMENT.CAPTURE.COMPLETED") {
+    const reservaId = resource?.purchase_units?.[0]?.reference_id;
+    if (reservaId) {
+      try {
+        await db.collection("reservas").doc(reservaId).update({
+          estado: "pagada",
+          paypalCaptureId: resource?.id ?? null,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (err) {
+        console.error("PayPal webhook error:", err.message);
+      }
+    }
+  }
+  res.status(200).send("OK");
+});
+
 app.listen(PORT, () => console.log(`BairesEssence API listening on port ${PORT}`));

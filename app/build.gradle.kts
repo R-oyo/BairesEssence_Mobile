@@ -1,8 +1,15 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.gms.google-services")
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.21"
+}
+
+val localProps = Properties().also { props: Properties ->
+    val f = rootProject.file("local.properties")
+    if (f.exists()) props.load(f.inputStream())
 }
 
 android {
@@ -20,6 +27,8 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        manifestPlaceholders["MAPS_API_KEY"] = localProps["MAPS_API_KEY"] ?: ""
     }
 
     buildTypes {
@@ -43,6 +52,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
@@ -83,6 +93,13 @@ dependencies {
 
     // Chrome Custom Tabs (MercadoPago checkout)
     implementation("androidx.browser:browser:1.8.0")
+
+    // Google Maps
+    implementation("com.google.maps.android:maps-compose:4.3.3")
+    implementation("com.google.android.gms:play-services-maps:19.0.0")
+
+    // PayPal
+    implementation("com.paypal.android:paypal-web-payments:1.6.0")
 
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")

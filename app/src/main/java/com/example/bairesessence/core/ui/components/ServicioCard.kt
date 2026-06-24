@@ -49,10 +49,11 @@ fun ServicioCard(
     enCarrito: Boolean = false,
     esFavorito: Boolean = false,
     onFavoritoClick: (() -> Unit)? = null,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth()
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = BESurface),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),

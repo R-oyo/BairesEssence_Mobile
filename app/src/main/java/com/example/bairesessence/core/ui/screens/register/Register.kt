@@ -117,8 +117,12 @@ fun RegisterScreenUI(
             )
         )
 
+        val scrollState = rememberScrollState()
+        LaunchedEffect(errorMessage) {
+            if (errorMessage != null) scrollState.animateScrollTo(0)
+        }
         Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+            modifier = Modifier.fillMaxSize().verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(Modifier.height(64.dp))

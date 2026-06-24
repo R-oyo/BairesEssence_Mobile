@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -25,6 +26,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.bairesessence.core.navigation.Screen
 import com.example.bairesessence.core.ui.components.BottomBar
+import com.example.bairesessence.core.ui.components.DateRangePickerDialog
 import com.example.bairesessence.core.ui.components.ServicioCard
 import com.example.bairesessence.core.ui.screens.carrito.CarritoViewModel
 import com.example.bairesessence.core.ui.theme.*
@@ -33,7 +35,13 @@ import com.example.bairesessence.data.model.Servicio
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
-private val CATEGORIAS = listOf("Todas", "Tours", "Gastronomia", "Traslados", "Experiencias")
+// (clave Firestore, título con emoji para el carrusel)
+private val CATEGORIAS = listOf(
+    "Tours"         to "🗺️  Tours",
+    "Gastronomia"   to "🍽️  Gastronomía",
+    "Traslados"     to "🚌  Traslados",
+    "Experiencias"  to "🎭  Experiencias"
+)
 
 @Composable
 fun CatalogoScreen(
@@ -46,40 +54,41 @@ fun CatalogoScreen(
     val cargando by homeVm.cargando.collectAsState()
     val fetchError by homeVm.fetchError.collectAsState()
     val favoritoIds by homeVm.favoritoIds.collectAsState()
-    var catActiva by remember { mutableStateOf("Todas") }
     var busqueda by remember { mutableStateOf("") }
     var mostrarCarrito by remember { mutableStateOf(false) }
 
     var mostrarFechasDialog by remember { mutableStateOf(false) }
-    var checkinTemp by remember { mutableStateOf("") }
-    var checkoutTemp by remember { mutableStateOf("") }
-    var errorFechas by remember { mutableStateOf<String?>(null) }
 
+    val focusManager = LocalFocusManager.current
     val user = FirebaseAuth.getInstance().currentUser
 
     LaunchedEffect(user?.uid) {
         homeVm.cargar(user?.uid)
     }
 
-    val filtrados = servicios.filter { s ->
-        val matchCat = catActiva == "Todas" || s.categoria.equals(catActiva, true)
-        val matchQ = busqueda.isBlank() || s.title.contains(busqueda, true) || s.description.contains(busqueda, true)
-        val matchFechas = run {
-            val ci = carritoState.checkin; val co = carritoState.checkout
-            if (ci.isBlank() || co.isBlank() || (s.from == null && s.until == null)) return@run true
-            val fmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-            val userIn  = runCatching { fmt.parse(ci)  }.getOrNull() ?: return@run true
-            val userOut = runCatching { fmt.parse(co) }.getOrNull() ?: return@run true
-            val svcFrom  = s.from?.toDate()
-            val svcUntil = s.until?.toDate()
-            when {
-                svcFrom != null && svcUntil != null -> !userOut.before(svcFrom) && !userIn.after(svcUntil)
-                svcFrom  != null -> !userOut.before(svcFrom)
-                svcUntil != null -> !userIn.after(svcUntil)
-                else -> true
-            }
+    // Filtra por fechas (se aplica siempre, tanto al carrusel como a búsqueda)
+    val porFecha = servicios.filter { s ->
+        val ci = carritoState.checkin; val co = carritoState.checkout
+        if (ci.isBlank() || co.isBlank() || (s.from == null && s.until == null)) return@filter true
+        val fmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        val userIn  = runCatching { fmt.parse(ci)  }.getOrNull() ?: return@filter true
+        val userOut = runCatching { fmt.parse(co) }.getOrNull() ?: return@filter true
+        val svcFrom = s.from?.toDate(); val svcUntil = s.until?.toDate()
+        when {
+            svcFrom != null && svcUntil != null -> !userOut.before(svcFrom) && !userIn.after(svcUntil)
+            svcFrom != null -> !userOut.before(svcFrom)
+            svcUntil != null -> !userIn.after(svcUntil)
+            else -> true
         }
-        matchCat && matchQ && matchFechas
+    }
+    // Resultados de búsqueda textual
+    val resultados = if (busqueda.isNotBlank())
+        porFecha.filter { it.title.contains(busqueda, true) || it.description.contains(busqueda, true) }
+    else emptyList()
+    // Secciones del carrusel agrupadas por categoría
+    val seccionesCarrusel = CATEGORIAS.mapNotNull { (key, titulo) ->
+        val svcs = porFecha.filter { it.categoria.equals(key, true) }
+        if (svcs.isNotEmpty()) Pair(titulo, svcs) else null
     }
 
     Scaffold(
@@ -104,6 +113,9 @@ fun CatalogoScreen(
                                     style = MaterialTheme.typography.bodySmall, color = Color.White.copy(0.6f))
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                IconButton(onClick = { navController.navigate(Screen.Mapa.route) }) {
+                                    Icon(Icons.Default.Map, "Mapa", tint = Color.White)
+                                }
                                 BadgedBox(badge = {
                                     if (carritoState.items.isNotEmpty())
                                         Badge(containerColor = BEPrimary) { Text("${carritoState.items.size}") }
@@ -128,6 +140,8 @@ fun CatalogoScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
                             singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = BEPrimaryLight,
                                 unfocusedBorderColor = Color.White.copy(0.25f),
@@ -141,12 +155,7 @@ fun CatalogoScreen(
 
                         // Date chip — optional, opens inline dialog
                         TextButton(
-                            onClick = {
-                                checkinTemp = carritoState.checkin
-                                checkoutTemp = carritoState.checkout
-                                errorFechas = null
-                                mostrarFechasDialog = true
-                            },
+                            onClick = { mostrarFechasDialog = true },
                             colors = ButtonDefaults.textButtonColors(contentColor = BEPrimaryLight)
                         ) {
                             if (carritoState.checkin.isNotBlank()) {
@@ -160,67 +169,14 @@ fun CatalogoScreen(
                     }
                 }
 
-                // ── Category pills
-                item {
-                    LazyRow(
-                        modifier = Modifier.background(BESurface).padding(vertical = 10.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(CATEGORIAS) { cat ->
-                            val sel = cat == catActiva
-                            FilterChip(
-                                selected = sel,
-                                onClick = { catActiva = cat },
-                                label = { Text(cat, style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal) },
-                                shape = RoundedCornerShape(99.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = BEPrimary,
-                                    selectedLabelColor = Color.White,
-                                    containerColor = BESurfaceVar,
-                                    labelColor = BETextSecond
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    enabled = true, selected = sel,
-                                    borderColor = BEBorder, selectedBorderColor = BEPrimary
-                                )
-                            )
-                        }
-                    }
-                    HorizontalDivider(color = BEBorder)
-                }
-
-                // ── Result count
-                item {
-                    if (!cargando && !fetchError)
-                        Text(
-                            "${filtrados.size} experiencia${if (filtrados.size != 1) "s" else ""}",
-                            style = MaterialTheme.typography.bodySmall, color = BETextMuted,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-                        )
-                }
-
-                // ── Error state
-                if (fetchError) {
-                    item {
-                        Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("⚠️", style = MaterialTheme.typography.displayMedium)
-                                Spacer(Modifier.height(8.dp))
-                                Text("Error al cargar experiencias", color = BEError,
-                                    style = MaterialTheme.typography.titleSmall)
-                            }
-                        }
-                    }
-                }
-
-                // ── Skeleton / results
+                // ── Skeleton mientras carga
                 if (cargando) {
                     items(3) {
-                        Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
                             shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = BESurface)) {
+                            colors = CardDefaults.cardColors(containerColor = BESurface)
+                        ) {
                             Column {
                                 Box(Modifier.fillMaxWidth().height(180.dp).background(BESurfaceVar))
                                 Column(Modifier.padding(12.dp)) {
@@ -231,32 +187,111 @@ fun CatalogoScreen(
                             }
                         }
                     }
-                } else if (!fetchError && filtrados.isEmpty()) {
+                } else if (fetchError) {
                     item {
                         Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("🔍", style = MaterialTheme.typography.displayMedium)
+                                Text("⚠️", style = MaterialTheme.typography.displayMedium)
                                 Spacer(Modifier.height(8.dp))
-                                Text("Sin resultados", style = MaterialTheme.typography.titleSmall,
-                                    color = BETextSecond)
-                                TextButton(onClick = { busqueda = ""; catActiva = "Todas" }) {
-                                    Text("Limpiar filtros", color = BEPrimary)
+                                Text("Error al cargar experiencias", color = BEError,
+                                    style = MaterialTheme.typography.titleSmall)
+                            }
+                        }
+                    }
+                } else if (busqueda.isNotBlank()) {
+                    // ── Resultados de búsqueda (lista vertical)
+                    item {
+                        Text(
+                            "${resultados.size} resultado${if (resultados.size != 1) "s" else ""} para \"$busqueda\"",
+                            style = MaterialTheme.typography.bodySmall, color = BETextMuted,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                        )
+                    }
+                    if (resultados.isEmpty()) {
+                        item {
+                            Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("🔍", style = MaterialTheme.typography.displayMedium)
+                                    Spacer(Modifier.height(8.dp))
+                                    Text("Sin resultados", style = MaterialTheme.typography.titleSmall, color = BETextSecond)
+                                    TextButton(onClick = { busqueda = "" }) {
+                                        Text("Limpiar búsqueda", color = BEPrimary)
+                                    }
                                 }
+                            }
+                        }
+                    } else {
+                        items(resultados) { s ->
+                            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                                ServicioCard(
+                                    servicio = s,
+                                    enCarrito = carritoVm.estaEnCarrito(s.id),
+                                    esFavorito = s.id in favoritoIds,
+                                    onFavoritoClick = { if (user != null) homeVm.toggleFavorito(user.uid, s.id) },
+                                    onClick = { navController.navigate("detalle/${s.id}") }
+                                )
                             }
                         }
                     }
                 } else {
-                    items(filtrados) { s ->
-                        Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                            ServicioCard(
-                                servicio = s,
-                                enCarrito = carritoVm.estaEnCarrito(s.id),
-                                esFavorito = s.id in favoritoIds,
-                                onFavoritoClick = {
-                                    if (user != null) homeVm.toggleFavorito(user.uid, s.id)
-                                },
-                                onClick = { navController.navigate("detalle/${s.id}") }
-                            )
+                    // ── Carrusel por categoría (modo descubrimiento)
+                    if (seccionesCarrusel.isEmpty()) {
+                        item {
+                            Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("📅", style = MaterialTheme.typography.displayMedium)
+                                    Spacer(Modifier.height(8.dp))
+                                    Text("No hay experiencias en esas fechas",
+                                        style = MaterialTheme.typography.titleSmall, color = BETextSecond)
+                                    TextButton(onClick = { carritoVm.setFechas("", "") }) {
+                                        Text("Quitar filtro de fechas", color = BEPrimary)
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        item {
+                            Row(
+                                Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "✨  Paquetes especiales",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = BETextPrimary
+                                )
+                                TextButton(onClick = { navController.navigate(Screen.Paquetes.route) }) {
+                                    Text("Ver todos →", color = BEPrimary, style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+                        items(seccionesCarrusel) { (titulo, svcs) ->
+                            Column(modifier = Modifier.padding(vertical = 12.dp)) {
+                                Text(
+                                    titulo,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = BETextPrimary,
+                                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
+                                )
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    items(svcs) { s ->
+                                        ServicioCard(
+                                            servicio = s,
+                                            enCarrito = carritoVm.estaEnCarrito(s.id),
+                                            esFavorito = s.id in favoritoIds,
+                                            onFavoritoClick = { if (user != null) homeVm.toggleFavorito(user.uid, s.id) },
+                                            onClick = { navController.navigate("detalle/${s.id}") },
+                                            modifier = Modifier.width(220.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -270,62 +305,17 @@ fun CatalogoScreen(
 
     // ── Date picker dialog
     if (mostrarFechasDialog) {
-        val focusManager = LocalFocusManager.current
-        AlertDialog(
-            onDismissRequest = { mostrarFechasDialog = false },
-            containerColor = BESurface,
-            title = { Text("¿Cuándo viajás?", fontWeight = FontWeight.Bold, color = BETextPrimary) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = checkinTemp, onValueChange = { checkinTemp = it; errorFechas = null },
-                        label = { Text("Llegada (yyyy-MM-dd)") },
-                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder)
-                    )
-                    OutlinedTextField(
-                        value = checkoutTemp, onValueChange = { checkoutTemp = it; errorFechas = null },
-                        label = { Text("Salida (yyyy-MM-dd)") },
-                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder)
-                    )
-                    errorFechas?.let {
-                        Text(it, color = BEError, style = MaterialTheme.typography.bodySmall)
-                    }
-                    if (carritoState.checkin.isNotBlank()) {
-                        TextButton(
-                            onClick = { carritoVm.setFechas("", ""); mostrarFechasDialog = false },
-                            colors = ButtonDefaults.textButtonColors(contentColor = BETextMuted)
-                        ) { Text("Quitar fechas", style = MaterialTheme.typography.bodySmall) }
-                    }
-                }
+        DateRangePickerDialog(
+            initialCheckin = carritoState.checkin,
+            initialCheckout = carritoState.checkout,
+            onConfirm = { ci, co ->
+                carritoVm.setFechas(ci, co)
+                mostrarFechasDialog = false
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        when {
-                            checkinTemp.isBlank() -> errorFechas = "Ingresá la fecha de llegada."
-                            checkoutTemp.isBlank() -> errorFechas = "Ingresá la fecha de salida."
-                            checkoutTemp <= checkinTemp -> errorFechas = "La salida debe ser posterior a la llegada."
-                            else -> { carritoVm.setFechas(checkinTemp, checkoutTemp); mostrarFechasDialog = false }
-                        }
-                    },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
-                ) { Text("Aplicar", color = Color.White, fontWeight = FontWeight.Bold) }
-            },
-            dismissButton = {
-                TextButton(onClick = { mostrarFechasDialog = false }) {
-                    Text("Cancelar", color = BETextSecond)
-                }
-            }
+            onDismiss = { mostrarFechasDialog = false },
+            onClearDates = if (carritoState.checkin.isNotBlank()) {
+                { carritoVm.setFechas("", ""); mostrarFechasDialog = false }
+            } else null
         )
     }
 }

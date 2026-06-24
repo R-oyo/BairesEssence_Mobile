@@ -26,12 +26,13 @@ import com.example.bairesessence.core.ui.theme.*
 @Composable
 fun LandingScreen(navController: NavHostController) {
     Box(modifier = Modifier.fillMaxSize()) {
-        // Background image
+        // Background image — FillWidth + TopCenter muestra el Obelisco sin cortarlo
         Image(
             painter = painterResource(id = R.drawable.baires_background),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.FillWidth,
+            alignment = Alignment.TopCenter
         )
 
         // Dark gradient overlay — stronger at bottom

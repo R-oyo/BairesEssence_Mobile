@@ -218,4 +218,90 @@ object FirestoreRepository {
                 d
             }
             .sortedByDescending { (it["timestamp"] as? com.google.firebase.Timestamp)?.seconds }
+
+    // ── Mapa ───────────────────────────────────────────────
+    suspend fun fetchServiciosDeReserva(reservaId: String): List<Servicio> {
+        val doc = db.collection("reservas").document(reservaId).get().await()
+        val svcs = doc.data?.get("servicios") as? List<*> ?: return emptyList()
+        return svcs.filterIsInstance<Map<*, *>>().mapNotNull { s ->
+            val id  = s["id"]  as? String ?: return@mapNotNull null
+            val lat = (s["lat"] as? Number)?.toDouble() ?: 0.0
+            val lng = (s["lng"] as? Number)?.toDouble() ?: 0.0
+            if (lat == 0.0 && lng == 0.0) return@mapNotNull null
+            Servicio(
+                id       = id,
+                title    = s["title"] as? String ?: "",
+                image    = s["image"] as? String ?: "",
+                precio   = (s["price"] as? Number)?.toDouble() ?: 0.0,
+                lat      = lat,
+                lng      = lng
+            )
+        }
+    }
+
+    suspend fun fetchServiciosDeItinerario(userId: String): List<Servicio> {
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+        return fetchReservasByUser(userId)
+            .filter { (it["checkin"] as? String ?: "") >= today }
+            .filter { (it["estado"] as? String) !in listOf("cancelada") }
+            .flatMap { r ->
+                val svcs = r["servicios"] as? List<*> ?: return@flatMap emptyList()
+                svcs.filterIsInstance<Map<*, *>>().mapNotNull { s ->
+                    val id  = s["id"]  as? String ?: return@mapNotNull null
+                    val lat = (s["lat"] as? Number)?.toDouble() ?: 0.0
+                    val lng = (s["lng"] as? Number)?.toDouble() ?: 0.0
+                    if (lat == 0.0 && lng == 0.0) return@mapNotNull null
+                    Servicio(
+                        id     = id,
+                        title  = s["title"] as? String ?: "",
+                        image  = s["image"] as? String ?: "",
+                        precio = (s["price"] as? Number)?.toDouble() ?: 0.0,
+                        lat    = lat,
+                        lng    = lng
+                    )
+                }
+            }
+            .distinctBy { it.id }
+    }
+
+    // ── Paquetes ───────────────────────────────────────────
+    suspend fun fetchPaquetes(): List<com.example.bairesessence.data.model.Paquete> =
+        db.collection("paquetes")
+            .whereEqualTo("activo", true)
+            .get().await()
+            .documents.mapNotNull { doc ->
+                val d = doc.data ?: return@mapNotNull null
+                com.example.bairesessence.data.model.Paquete(
+                    id         = doc.id,
+                    agencia    = d["agencia"]    as? String ?: "",
+                    nombre     = d["nombre"]     as? String ?: "",
+                    descripcion= d["descripcion"] as? String ?: "",
+                    servicios  = (d["servicios"] as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                    precioTotal= (d["precioTotal"] as? Number)?.toDouble() ?: 0.0,
+                    descuento  = (d["descuento"]  as? Number)?.toDouble() ?: 0.0,
+                    imagen     = d["imagen"]     as? String ?: "",
+                    activo     = d["activo"]     as? Boolean ?: true
+                )
+            }
+
+    suspend fun fetchPaqueteById(id: String): com.example.bairesessence.data.model.Paquete? {
+        val doc = db.collection("paquetes").document(id).get().await()
+        val d = doc.data ?: return null
+        return com.example.bairesessence.data.model.Paquete(
+            id         = doc.id,
+            agencia    = d["agencia"]    as? String ?: "",
+            nombre     = d["nombre"]     as? String ?: "",
+            descripcion= d["descripcion"] as? String ?: "",
+            servicios  = (d["servicios"] as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+            precioTotal= (d["precioTotal"] as? Number)?.toDouble() ?: 0.0,
+            descuento  = (d["descuento"]  as? Number)?.toDouble() ?: 0.0,
+            imagen     = d["imagen"]     as? String ?: "",
+            activo     = d["activo"]     as? Boolean ?: true
+        )
+    }
+
+    suspend fun fetchServiciosByIds(ids: List<String>): List<Servicio> =
+        ids.mapNotNull { id ->
+            runCatching { fetchServicioById(id) }.getOrNull()
+        }
 }
