@@ -16,6 +16,7 @@ local.properties
 /.claude/settings.local.json
 
 # Archivos de sesiones QA
+/qa/
 qa_*.png
 qa_*.xml
 screenshot_*.png
