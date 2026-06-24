@@ -30,7 +30,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-private const val BACKEND_BASE_URL = "" // Configurar cuando se elija host del backend
+private const val BACKEND_BASE_URL = "https://bairesessence-mobile.onrender.com"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
