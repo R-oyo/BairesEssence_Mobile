@@ -43,6 +43,7 @@ fun BairesEssenceLogin(navController: NavHostController) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var resetMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
 
     val isPreview = LocalInspectionMode.current
@@ -172,7 +173,15 @@ fun BairesEssenceLogin(navController: NavHostController) {
             googleSignInClient?.signInIntent?.let { launcher.launch(it) }
         },
         onRegisterClick = { navController.navigate(Screen.Register.route) },
+        onForgotPasswordClick = {
+            if (email.isBlank()) { errorMessage = "Ingresá tu email para recuperar la contraseña."; return@LoginScreenUI }
+            errorMessage = null; resetMessage = null
+            FirebaseAuth.getInstance().sendPasswordResetEmail(email.trim())
+                .addOnSuccessListener { resetMessage = "Te enviamos un mail para restablecer tu contraseña." }
+                .addOnFailureListener { resetMessage = null; errorMessage = it.localizedMessage ?: "No se pudo enviar el mail." }
+        },
         errorMessage = errorMessage,
+        resetMessage = resetMessage,
         isLoading = isLoading
     )
 }
@@ -186,7 +195,9 @@ fun LoginScreenUI(
     onLoginClick: () -> Unit,
     onGoogleLoginClick: () -> Unit,
     onRegisterClick: () -> Unit,
+    onForgotPasswordClick: () -> Unit = {},
     errorMessage: String?,
+    resetMessage: String? = null,
     isLoading: Boolean
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
@@ -279,7 +290,21 @@ fun LoginScreenUI(
                         enabled = !isLoading
                     )
 
-                    Spacer(Modifier.height(20.dp))
+                    if (resetMessage != null) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(resetMessage, color = BEPrimary, fontSize = 12.sp)
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+
+                    TextButton(
+                        onClick = onForgotPasswordClick,
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("¿Olvidaste tu contraseña?", color = BETextSecond, fontSize = 13.sp)
+                    }
+
+                    Spacer(Modifier.height(8.dp))
 
                     Button(
                         onClick = onLoginClick,

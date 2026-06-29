@@ -98,6 +98,48 @@ fun CatalogoScreen(
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
 
+                // ── Banner verificación de email
+                val authUser = FirebaseAuth.getInstance().currentUser
+                val isGoogleUser = authUser?.providerData?.any { it.providerId == "google.com" } == true
+                if (authUser != null && !authUser.isEmailVerified && !isGoogleUser) {
+                    item {
+                        var dismissed by remember { mutableStateOf(false) }
+                        var sent by remember { mutableStateOf(false) }
+                        if (!dismissed) {
+                            Surface(
+                                modifier = androidx.compose.ui.Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                color = androidx.compose.ui.graphics.Color(0xFFFFF3CD)
+                            ) {
+                                Row(
+                                    modifier = androidx.compose.ui.Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Column(modifier = androidx.compose.ui.Modifier.weight(1f)) {
+                                        Text("Verificá tu email", fontWeight = FontWeight.SemiBold,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = androidx.compose.ui.graphics.Color(0xFF7D5700))
+                                        Text(if (sent) "Mail enviado. Revisá tu bandeja." else "Tu cuenta no está verificada.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = androidx.compose.ui.graphics.Color(0xFF7D5700))
+                                    }
+                                    if (!sent) {
+                                        TextButton(onClick = { authUser.sendEmailVerification(); sent = true }) {
+                                            Text("Reenviar", style = MaterialTheme.typography.bodySmall,
+                                                color = androidx.compose.ui.graphics.Color(0xFF7D5700), fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                    TextButton(onClick = { dismissed = true }) {
+                                        Text("✕", style = MaterialTheme.typography.bodySmall,
+                                            color = androidx.compose.ui.graphics.Color(0xFF7D5700))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // ── Dark header
                 item {
                     Column(modifier = Modifier.background(BEDark).padding(horizontal = 20.dp, vertical = 16.dp)) {

@@ -1,6 +1,11 @@
 package com.example.bairesessence.core.ui.screens.perfil
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -9,8 +14,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ListAlt
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,14 +28,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.bairesessence.core.navigation.Screen
 import com.example.bairesessence.core.ui.components.BottomBar
 import com.example.bairesessence.data.firebase.FirestoreRepository
 import kotlinx.coroutines.launch
 import com.example.bairesessence.core.ui.theme.*
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.storage.FirebaseStorage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,7 +49,23 @@ fun PerfilScreen(navController: NavController) {
     val userId = user?.uid
 
     var fullName by remember { mutableStateOf(user?.displayName ?: "") }
+    var photoUrl by remember { mutableStateOf(user?.photoUrl?.toString()) }
+    var subiendoFoto by remember { mutableStateOf(false) }
     var cargando by remember { mutableStateOf(true) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri == null || userId == null) return@rememberLauncherForActivityResult
+        subiendoFoto = true
+        val ref = FirebaseStorage.getInstance().reference.child("profiles/$userId/avatar.jpg")
+        ref.putFile(uri).continueWithTask { ref.downloadUrl }
+            .addOnSuccessListener { downloadUri: android.net.Uri ->
+                photoUrl = downloadUri.toString()
+                user?.updateProfile(UserProfileChangeRequest.Builder().setPhotoUri(downloadUri).build())
+                db.collection("users").document(userId).set(mapOf("photoUrl" to downloadUri.toString()), SetOptions.merge())
+                subiendoFoto = false
+            }
+            .addOnFailureListener { subiendoFoto = false }
+    }
     var guardando by remember { mutableStateOf(false) }
     var guardado by remember { mutableStateOf(false) }
 
@@ -111,18 +137,43 @@ fun PerfilScreen(navController: NavController) {
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Avatar
+            // Avatar con opción de cambiar foto
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Box(
-                    Modifier.size(88.dp).clip(CircleShape).background(BEPrimary),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        (user?.displayName?.firstOrNull() ?: user?.email?.firstOrNull() ?: 'U')
-                            .uppercaseChar().toString(),
-                        style = MaterialTheme.typography.displaySmall,
-                        color = Color.White, fontWeight = FontWeight.Bold
-                    )
+                Box(contentAlignment = Alignment.BottomEnd) {
+                    Box(
+                        Modifier.size(88.dp).clip(CircleShape)
+                            .background(BEPrimary)
+                            .border(2.dp, BEPrimary, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (photoUrl != null) {
+                            AsyncImage(
+                                model = photoUrl,
+                                contentDescription = "Foto de perfil",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Text(
+                                (user?.displayName?.firstOrNull() ?: user?.email?.firstOrNull() ?: 'U')
+                                    .uppercaseChar().toString(),
+                                style = MaterialTheme.typography.displaySmall,
+                                color = Color.White, fontWeight = FontWeight.Bold
+                            )
+                        }
+                        if (subiendoFoto) {
+                            Box(Modifier.fillMaxSize().background(Color.Black.copy(0.5f)), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(color = BEPrimary, modifier = Modifier.size(28.dp), strokeWidth = 2.dp)
+                            }
+                        }
+                    }
+                    Box(
+                        Modifier.size(28.dp).clip(CircleShape).background(BEPrimary)
+                            .clickable(enabled = !subiendoFoto) { imagePickerLauncher.launch("image/*") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = "Cambiar foto", tint = Color.White, modifier = Modifier.size(16.dp))
+                    }
                 }
             }
 
