@@ -30,9 +30,9 @@ data class Servicio(
     val precioFormateado: String get() =
         if (tienePrecio) "$${"%,.0f".format(precio).replace(",", ".")}" else "A consultar"
     val fechaDesde: String? get() = from?.toDate()?.let {
-        java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("es", "AR")).format(it)
+        java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.Builder().setLanguage("es").setRegion("AR").build()).format(it)
     }
     val fechaHasta: String? get() = until?.toDate()?.let {
-        java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("es", "AR")).format(it)
+        java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.Builder().setLanguage("es").setRegion("AR").build()).format(it)
     }
 }

@@ -19,7 +19,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import androidx.compose.animation.core.*
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import coil.compose.SubcomposeAsyncImage
 import com.example.bairesessence.core.ui.theme.*
 import com.example.bairesessence.data.model.Servicio
 
@@ -61,14 +64,16 @@ fun ServicioCard(
     ) {
         Box {
             // Hero image
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = servicio.image.ifBlank { null },
                 contentDescription = servicio.title,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(180.dp)
                     .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                loading = { ImageShimmer() },
+                error = { ImagePlaceholder(servicio.categoria) }
             )
 
             // Categoria badge — top left
@@ -197,6 +202,44 @@ fun ServicioCard(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ImageShimmer() {
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val offsetState = transition.animateFloat(
+        initialValue = -1000f, targetValue = 1000f, label = "shimmer_offset",
+        animationSpec = infiniteRepeatable(tween(1200, easing = LinearEasing))
+    )
+    Box(
+        Modifier.fillMaxWidth().height(180.dp).background(
+            Brush.linearGradient(
+                colors = listOf(BESurface, BEBorder, BESurface),
+                start = Offset(offsetState.value, 0f),
+                end   = Offset(offsetState.value + 600f, 300f)
+            )
+        )
+    )
+}
+
+@Composable
+private fun ImagePlaceholder(categoria: String) {
+    val emoji = when (categoria.lowercase()) {
+        "gastronomia", "gastronomía" -> "🍽️"
+        "traslados"  -> "🚌"
+        "experiencias" -> "🎭"
+        else -> "🗺️"
+    }
+    Box(
+        Modifier.fillMaxWidth().height(180.dp).background(BESurface),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(emoji, style = MaterialTheme.typography.displaySmall)
+            Spacer(Modifier.height(4.dp))
+            Text("Sin imagen", style = MaterialTheme.typography.labelSmall, color = BETextMuted)
         }
     }
 }
