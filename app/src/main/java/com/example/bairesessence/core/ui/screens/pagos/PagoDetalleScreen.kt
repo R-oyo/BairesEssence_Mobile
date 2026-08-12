@@ -8,7 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,7 +30,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-private const val BACKEND_BASE_URL = "https://bairesessence-mobile.onrender.com"
+private const val BACKEND_URL_DEFAULT = "https://bairesessence-mobile.onrender.com"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +43,14 @@ fun PagoDetalleScreen(navController: NavController, reservaId: String) {
     var cargando by remember { mutableStateOf(true) }
     var procesando by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+
+    var backendUrl by remember { mutableStateOf(BACKEND_URL_DEFAULT) }
+    LaunchedEffect(Unit) {
+        runCatching {
+            val doc = db.collection("config").document("app").get().await()
+            doc.getString("backendUrl")?.let { backendUrl = it }
+        }
+    }
 
     // Snapshot listener: detecta el cambio de estado cuando el webhook de MP actualiza Firestore
     DisposableEffect(reservaId) {
@@ -73,7 +81,7 @@ fun PagoDetalleScreen(navController: NavController, reservaId: String) {
                     ?: throw Exception("No se pudo obtener el token.")
 
                 val initPoint = withContext(Dispatchers.IO) {
-                    val url = URL("$BACKEND_BASE_URL/createMercadoPagoPreference")
+                    val url = URL("$backendUrl/createMercadoPagoPreference")
                     val conn = url.openConnection() as HttpURLConnection
                     conn.requestMethod = "POST"
                     conn.setRequestProperty("Content-Type", "application/json")
@@ -112,7 +120,7 @@ fun PagoDetalleScreen(navController: NavController, reservaId: String) {
                     ?: throw Exception("No se pudo obtener el token.")
 
                 val approveUrl = withContext(Dispatchers.IO) {
-                    val url = URL("$BACKEND_BASE_URL/createPaypalOrder")
+                    val url = URL("$backendUrl/createPaypalOrder")
                     val conn = url.openConnection() as HttpURLConnection
                     conn.requestMethod = "POST"
                     conn.setRequestProperty("Content-Type", "application/json")
@@ -153,7 +161,7 @@ fun PagoDetalleScreen(navController: NavController, reservaId: String) {
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = null, tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BEDark)

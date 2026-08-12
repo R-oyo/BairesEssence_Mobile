@@ -8,8 +8,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -74,7 +74,7 @@ fun ChatScreen(navController: NavController, reservaId: String) {
                 title = { Text("Chat con equipo", fontWeight = FontWeight.SemiBold, color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, null, tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BEDark)
@@ -206,7 +206,7 @@ fun ChatScreen(navController: NavController, reservaId: String) {
                             .size(48.dp)
                             .background(if (texto.isNotBlank()) BEPrimary else BEBorder, CircleShape)
                     ) {
-                        Icon(Icons.Default.Send, "Enviar", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.Send, "Enviar", tint = Color.White)
                     }
                 }
             }

@@ -8,7 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.*
@@ -92,7 +92,7 @@ fun DetalleScreen(
                 // Back button
                 IconButton(onClick = { navController.popBackStack() }, modifier = Modifier.padding(8.dp)) {
                     Surface(shape = RoundedCornerShape(99.dp), color = Color.White.copy(0.9f)) {
-                        Icon(Icons.Default.ArrowBack, null, modifier = Modifier.padding(8.dp), tint = BETextPrimary)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, modifier = Modifier.padding(8.dp), tint = BETextPrimary)
                     }
                 }
                 // Favorite button — top right of hero

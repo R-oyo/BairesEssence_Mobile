@@ -4,7 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.ListAlt
+import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -23,7 +23,7 @@ fun BottomBar(navController: NavController) {
         NavItem("home",       Icons.Default.Home,      "Inicio"),
         NavItem("favoritos",  Icons.Default.Favorite,  "Favoritos"),
         NavItem("itinerary",  Icons.Default.DateRange, "Itinerario"),
-        NavItem("mis_reservas", Icons.Default.ListAlt, "Reservas"),
+        NavItem("mis_reservas", Icons.AutoMirrored.Filled.ListAlt, "Reservas"),
         NavItem("perfil",     Icons.Default.Person,    "Perfil"),
     )
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
