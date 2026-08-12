@@ -34,6 +34,7 @@ fun PaqueteDetalleScreen(
     var paquete by remember { mutableStateOf<Paquete?>(null) }
     var servicios by remember { mutableStateOf(listOf<Servicio>()) }
     var cargando by remember { mutableStateOf(true) }
+    var fetchError by remember { mutableStateOf(false) }
     var agregado by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -44,7 +45,7 @@ fun PaqueteDetalleScreen(
             if (p != null && p.servicios.isNotEmpty()) {
                 servicios = FirestoreRepository.fetchServiciosByIds(p.servicios)
             }
-        }
+        }.onFailure { fetchError = true }
         cargando = false
     }
 
@@ -80,6 +81,14 @@ fun PaqueteDetalleScreen(
         if (cargando) {
             Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = BEPrimary)
+            }
+        } else if (fetchError) {
+            Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("⚠️", style = MaterialTheme.typography.displayMedium)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Error al cargar el paquete", color = BEError, style = MaterialTheme.typography.titleSmall)
+                }
             }
         } else if (paquete == null) {
             Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {

@@ -38,6 +38,15 @@ fun ChatScreen(navController: NavController, reservaId: String) {
     val mensajes = remember { mutableStateListOf<Map<String, Any>>() }
     var texto by remember { mutableStateOf("") }
     var enviando by remember { mutableStateOf(false) }
+    var errorEnvio by remember { mutableStateOf<String?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(errorEnvio) {
+        errorEnvio?.let {
+            snackbarHostState.showSnackbar(it)
+            errorEnvio = null
+        }
+    }
 
     DisposableEffect(reservaId) {
         val reg = db.collection("reservas").document(reservaId)
@@ -59,6 +68,7 @@ fun ChatScreen(navController: NavController, reservaId: String) {
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Chat con equipo", fontWeight = FontWeight.SemiBold, color = Color.White) },
@@ -184,6 +194,9 @@ fun ChatScreen(navController: NavController, reservaId: String) {
                                         senderEmail = user.email ?: "",
                                         texto = temp
                                     )
+                                }.onFailure {
+                                    texto = temp
+                                    errorEnvio = "No se pudo enviar el mensaje. Intentá de nuevo."
                                 }
                                 enviando = false
                             }

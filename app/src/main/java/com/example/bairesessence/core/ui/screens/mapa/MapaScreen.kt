@@ -83,20 +83,46 @@ fun MapaScreen(navController: NavController, filter: String = "all") {
                 CircularProgressIndicator(color = BEPrimary)
             }
         } else {
-            GoogleMap(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
-                cameraPositionState = cameraPositionState
-            ) {
-                servicios.forEach { servicio ->
-                    Marker(
-                        state = MarkerState(position = LatLng(servicio.lat, servicio.lng)),
-                        title = servicio.title,
-                        snippet = servicio.precioFormateado,
-                        onClick = { _ ->
-                            seleccionado = servicio
-                            true
+            Box(Modifier.fillMaxSize().padding(innerPadding)) {
+                GoogleMap(
+                    modifier = Modifier.fillMaxSize(),
+                    cameraPositionState = cameraPositionState
+                ) {
+                    servicios.forEach { servicio ->
+                        Marker(
+                            state = MarkerState(position = LatLng(servicio.lat, servicio.lng)),
+                            title = servicio.title,
+                            snippet = servicio.precioFormateado,
+                            onClick = { _ ->
+                                seleccionado = servicio
+                                true
+                            }
+                        )
+                    }
+                }
+                if (servicios.isEmpty()) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(24.dp)
+                            .fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = BESurface,
+                        shadowElevation = 4.dp
+                    ) {
+                        Column(
+                            Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text("📍", style = MaterialTheme.typography.titleLarge)
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "No hay experiencias con ubicación para mostrar",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = BETextMuted
+                            )
                         }
-                    )
+                    }
                 }
             }
         }
