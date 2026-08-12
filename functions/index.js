@@ -1,18 +1,26 @@
-const express = require("express");
+const { onRequest } = require("firebase-functions/v2/https");
+const { defineSecret, defineString } = require("firebase-functions/params");
 const admin = require("firebase-admin");
+const express = require("express");
 const axios = require("axios");
 
-const FIREBASE_B64 = process.env.FIREBASE_SERVICE_ACCOUNT_B64;
-if (!FIREBASE_B64) {
-  console.error("FATAL: falta la variable de entorno FIREBASE_SERVICE_ACCOUNT_B64");
-  process.exit(1);
-}
-const serviceAccount = JSON.parse(Buffer.from(FIREBASE_B64, "base64").toString());
-admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+// En Cloud Functions las credenciales de Admin salen del service account
+// del entorno (Application Default Credentials); no hace falta cargar un JSON.
+admin.initializeApp();
 const db = admin.firestore();
 
-const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
-const PORT = process.env.PORT || 3000;
+// ── Secrets (Google Secret Manager). Se cargan con:
+//    firebase functions:secrets:set MP_ACCESS_TOKEN   (idem PAYPAL_*)
+const MP_ACCESS_TOKEN = defineSecret("MP_ACCESS_TOKEN");
+const PAYPAL_CLIENT_ID = defineSecret("PAYPAL_CLIENT_ID");
+const PAYPAL_CLIENT_SECRET = defineSecret("PAYPAL_CLIENT_SECRET");
+
+// ── Config no sensible (parámetros con default; se pueden fijar en deploy).
+const PAYPAL_SANDBOX = defineString("PAYPAL_SANDBOX", { default: "true" });
+const APP_DOMAIN = defineString("APP_DOMAIN", { default: "https://www.mercadopago.com.ar" });
+const MP_WEBHOOK_URL = defineString("MP_WEBHOOK_URL", {
+  default: "https://baires-essence.web.app/webhook/mercadopago",
+});
 
 const app = express();
 app.use(express.json());
@@ -60,26 +68,26 @@ app.post("/createMercadoPagoPreference", verifyFirebaseToken, async (req, res) =
         }))
       : [{ title: "Reserva BairesEssence", quantity: 1, unit_price: total, currency_id: "ARS" }];
 
-  const APP_DOMAIN = process.env.APP_DOMAIN || "https://www.mercadopago.com.ar";
-  const WEBHOOK_URL = process.env.MP_WEBHOOK_URL || "";
+  const appDomain = APP_DOMAIN.value();
+  const webhookUrl = MP_WEBHOOK_URL.value();
 
   const preference = {
     items,
     external_reference: reservaId,
     back_urls: {
-      success: `${APP_DOMAIN}/pago/success`,
-      failure: `${APP_DOMAIN}/pago/failure`,
-      pending: `${APP_DOMAIN}/pago/pending`,
+      success: `${appDomain}/pago/success`,
+      failure: `${appDomain}/pago/failure`,
+      pending: `${appDomain}/pago/pending`,
     },
     auto_return: "approved",
-    ...(WEBHOOK_URL && { notification_url: WEBHOOK_URL }),
+    ...(webhookUrl && { notification_url: webhookUrl }),
   };
 
   try {
     const mpRes = await axios.post(
       "https://api.mercadopago.com/checkout/preferences",
       preference,
-      { headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` } }
+      { headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN.value()}` } }
     );
     res.json({ preferenceId: mpRes.data.id, initPoint: mpRes.data.init_point });
   } catch (err) {
@@ -99,7 +107,7 @@ app.post("/webhook/mercadopago", async (req, res) => {
   try {
     const payRes = await axios.get(
       `https://api.mercadopago.com/v1/payments/${data.id}`,
-      { headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` } }
+      { headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN.value()}` } }
     );
     const { status: mpStatus, external_reference: reservaId } = payRes.data;
     if (!reservaId) return res.status(200).send("OK");
@@ -134,19 +142,17 @@ app.post("/createPaypalOrder", verifyFirebaseToken, async (req, res) => {
   const reserva = snap.data();
   const total = Math.max(1, Number(reserva.total) || 0);
 
-  const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
-  const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
-  const PAYPAL_BASE = process.env.PAYPAL_SANDBOX === "false"
+  const paypalBase = PAYPAL_SANDBOX.value() === "false"
     ? "https://api-m.paypal.com"
     : "https://api-m.sandbox.paypal.com";
 
   try {
     // 1. Obtener access token
     const tokenRes = await axios.post(
-      `${PAYPAL_BASE}/v1/oauth2/token`,
+      `${paypalBase}/v1/oauth2/token`,
       "grant_type=client_credentials",
       {
-        auth: { username: PAYPAL_CLIENT_ID, password: PAYPAL_CLIENT_SECRET },
+        auth: { username: PAYPAL_CLIENT_ID.value(), password: PAYPAL_CLIENT_SECRET.value() },
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       }
     );
@@ -155,7 +161,7 @@ app.post("/createPaypalOrder", verifyFirebaseToken, async (req, res) => {
     // 2. Crear orden — monto en USD (aproximado; ajustar según moneda real)
     const amountUSD = (total / 1000).toFixed(2);
     const orderRes = await axios.post(
-      `${PAYPAL_BASE}/v2/checkout/orders`,
+      `${paypalBase}/v2/checkout/orders`,
       {
         intent: "CAPTURE",
         purchase_units: [
@@ -201,4 +207,11 @@ app.post("/paypalWebhook", async (req, res) => {
   res.status(200).send("OK");
 });
 
-app.listen(PORT, () => console.log(`BairesEssence API listening on port ${PORT}`));
+// Exporta el Express app como una única Cloud Function HTTP (2ª gen).
+exports.api = onRequest(
+  {
+    region: "us-central1",
+    secrets: [MP_ACCESS_TOKEN, PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET],
+  },
+  app
+);

@@ -4,6 +4,26 @@
   },
   "functions": {
     "source": "functions",
-    "runtime": "nodejs20"
+    "runtime": "nodejs22",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "scripts",
+      "*.local"
+    ]
+  },
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      { "source": "/createMercadoPagoPreference", "function": "api" },
+      { "source": "/createPaypalOrder", "function": "api" },
+      { "source": "/webhook/mercadopago", "function": "api" },
+      { "source": "/paypalWebhook", "function": "api" }
+    ]
   }
 }

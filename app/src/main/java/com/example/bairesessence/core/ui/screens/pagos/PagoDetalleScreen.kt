@@ -30,7 +30,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-private const val BACKEND_URL_DEFAULT = "https://bairesessence-mobile.onrender.com"
+private const val BACKEND_URL_DEFAULT = "https://baires-essence.web.app"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

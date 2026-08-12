@@ -34,5 +34,11 @@ logcat_*.txt
 # Node modules del backend
 functions/node_modules/
 
+# Secrets / config de entorno de Firebase Functions
+functions/.env
+functions/.env.*
+functions/.secret.local
+.runtimeconfig.json
+
 # Archivos temporales de IDE
 .idea/markdown.xml
