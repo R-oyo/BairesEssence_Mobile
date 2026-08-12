@@ -2,10 +2,12 @@ const express = require("express");
 const admin = require("firebase-admin");
 const axios = require("axios");
 
-// Firebase Admin — credentials via env var (base64 del service account JSON)
-const serviceAccount = JSON.parse(
-  Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_B64 || "", "base64").toString()
-);
+const FIREBASE_B64 = process.env.FIREBASE_SERVICE_ACCOUNT_B64;
+if (!FIREBASE_B64) {
+  console.error("FATAL: falta la variable de entorno FIREBASE_SERVICE_ACCOUNT_B64");
+  process.exit(1);
+}
+const serviceAccount = JSON.parse(Buffer.from(FIREBASE_B64, "base64").toString());
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 
