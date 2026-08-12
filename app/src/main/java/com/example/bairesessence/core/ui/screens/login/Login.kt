@@ -1,9 +1,6 @@
 package com.example.bairesessence.core.ui.screens.login
 
-import android.app.Activity
 import android.util.Log
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -13,7 +10,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -27,16 +23,21 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
 import androidx.navigation.NavHostController
 import com.example.bairesessence.R
 import com.example.bairesessence.core.navigation.Screen
 import com.example.bairesessence.core.ui.theme.*
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 @Composable
 fun BairesEssenceLogin(navController: NavHostController) {
@@ -48,86 +49,67 @@ fun BairesEssenceLogin(navController: NavHostController) {
     val isPreview = LocalInspectionMode.current
     val context = LocalContext.current
     val auth: FirebaseAuth? = if (!isPreview) FirebaseAuth.getInstance() else null
+    val scope = rememberCoroutineScope()
 
-    val googleSignInClient = remember {
-        if (!isPreview) {
-            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken(context.getString(R.string.default_web_client_id))
-                .requestEmail()
-                .build()
-            GoogleSignIn.getClient(context, gso)
-        } else null
-    }
+    fun handleGoogleSignIn() {
+        errorMessage = null
+        isLoading = true
+        scope.launch {
+            try {
+                val credentialManager = CredentialManager.create(context)
+                val googleIdOption = GetGoogleIdOption.Builder()
+                    .setFilterByAuthorizedAccounts(false)
+                    .setServerClientId(context.getString(R.string.default_web_client_id))
+                    .setAutoSelectEnabled(false)
+                    .build()
+                val request = GetCredentialRequest.Builder()
+                    .addCredentialOption(googleIdOption)
+                    .build()
 
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        when (result.resultCode) {
-            Activity.RESULT_OK -> {
-                val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                try {
-                    isLoading = true
-                    val account = task.getResult(ApiException::class.java)
-                    val idToken = account?.idToken
-                    if (idToken == null) {
+                val result = credentialManager.getCredential(context = context, request = request)
+                val googleCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
+                val firebaseCredential = GoogleAuthProvider.getCredential(googleCredential.idToken, null)
+
+                val authResult = auth!!.signInWithCredential(firebaseCredential).await()
+                val uid = authResult.user?.uid ?: throw Exception("UID nulo.")
+                val firebaseUser = authResult.user
+                val ref = FirebaseFirestore.getInstance().collection("users").document(uid)
+                val doc = ref.get().await()
+
+                if (!doc.exists()) {
+                    ref.set(mapOf(
+                        "userId"   to uid,
+                        "email"    to (firebaseUser?.email ?: ""),
+                        "fullname" to (firebaseUser?.displayName ?: ""),
+                        "fullName" to (firebaseUser?.displayName ?: ""),
+                        "role"     to "user",
+                        "activo"   to true
+                    )).await()
+                } else {
+                    val activo = doc.getBoolean("activo") ?: true
+                    if (!activo) {
+                        auth.signOut()
+                        errorMessage = "Tu cuenta está desactivada."
                         isLoading = false
-                        errorMessage = "No se pudo obtener el token de Google. Intentá de nuevo."
-                        return@rememberLauncherForActivityResult
+                        return@launch
                     }
-                    val credential = GoogleAuthProvider.getCredential(idToken, null)
-                    auth?.signInWithCredential(credential)?.addOnCompleteListener { firebaseTask ->
-                        if (firebaseTask.isSuccessful) {
-                            val uid = firebaseTask.result?.user?.uid ?: return@addOnCompleteListener
-                            val firebaseUser = firebaseTask.result?.user
-                            val ref = FirebaseFirestore.getInstance().collection("users").document(uid)
-                            ref.get()
-                                .addOnSuccessListener { doc ->
-                                    if (!doc.exists()) {
-                                        ref.set(mapOf(
-                                            "userId"   to uid,
-                                            "email"    to (firebaseUser?.email ?: ""),
-                                            "fullname" to (firebaseUser?.displayName ?: ""),
-                                            "fullName" to (firebaseUser?.displayName ?: ""),
-                                            "role"     to "user",
-                                            "activo"   to true
-                                        )).addOnCompleteListener {
-                                            isLoading = false
-                                            navController.navigate(Screen.Home.route) {
-                                                popUpTo(Screen.Landing.route) { inclusive = true }
-                                            }
-                                        }
-                                    } else {
-                                        val activo = doc.getBoolean("activo") ?: true
-                                        isLoading = false
-                                        if (!activo) {
-                                            auth?.signOut()
-                                            errorMessage = "Tu cuenta está desactivada."
-                                        } else {
-                                            navController.navigate(Screen.Home.route) { popUpTo(Screen.Landing.route) { inclusive = true } }
-                                        }
-                                    }
-                                }
-                                .addOnFailureListener {
-                                    isLoading = false
-                                    navController.navigate(Screen.Home.route) { popUpTo(Screen.Landing.route) { inclusive = true } }
-                                }
-                        } else {
-                            isLoading = false
-                            errorMessage = firebaseTask.exception?.message ?: "Error en la autenticación."
-                        }
-                    }
-                } catch (e: ApiException) {
-                    isLoading = false
-                    errorMessage = when (e.statusCode) {
-                        12500 -> "Google Sign-In no está configurado. Verificá el SHA-1 en Firebase Console."
-                        12501 -> null  // user cancelled — no error
-                        7     -> "Sin conexión a internet."
-                        else  -> "Google Sign-In falló (código ${e.statusCode})."
-                    }
-                    Log.e("GoogleSignIn", "ApiException code=${e.statusCode}", e)
                 }
+                isLoading = false
+                navController.navigate(Screen.Home.route) {
+                    popUpTo(Screen.Landing.route) { inclusive = true }
+                }
+            } catch (e: GetCredentialCancellationException) {
+                isLoading = false
+                // usuario canceló — sin mensaje de error
+            } catch (e: GetCredentialException) {
+                isLoading = false
+                Log.e("GoogleSignIn", "GetCredentialException", e)
+                errorMessage = "Google Sign-In no disponible. Verificá que tenés una cuenta de Google configurada en el dispositivo."
+            } catch (e: Exception) {
+                isLoading = false
+                Log.e("GoogleSignIn", "Exception durante sign-in", e)
+                errorMessage = e.message ?: "Error en la autenticación."
             }
-            Activity.RESULT_CANCELED -> { /* user cancelled — no error */ }
         }
     }
 
@@ -167,10 +149,7 @@ fun BairesEssenceLogin(navController: NavHostController) {
                     }
                 }
         },
-        onGoogleLoginClick = {
-            errorMessage = null
-            googleSignInClient?.signInIntent?.let { launcher.launch(it) }
-        },
+        onGoogleLoginClick = { handleGoogleSignIn() },
         onRegisterClick = { navController.navigate(Screen.Register.route) },
         errorMessage = errorMessage,
         isLoading = isLoading
