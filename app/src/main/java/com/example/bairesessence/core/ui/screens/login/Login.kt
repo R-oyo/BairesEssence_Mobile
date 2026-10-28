@@ -82,7 +82,6 @@ fun BairesEssenceLogin(navController: NavHostController) {
                         "userId"   to uid,
                         "email"    to (firebaseUser?.email ?: ""),
                         "fullname" to (firebaseUser?.displayName ?: ""),
-                        "fullName" to (firebaseUser?.displayName ?: ""),
                         "role"     to "user",
                         "activo"   to true
                     )).await()

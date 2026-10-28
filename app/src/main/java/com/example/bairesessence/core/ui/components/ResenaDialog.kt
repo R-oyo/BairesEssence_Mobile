@@ -125,10 +125,12 @@ fun ResenaDialog(
                                 FirestoreRepository.addResena(
                                     userId = user.uid,
                                     userEmail = user.email ?: "",
+                                    userName = user.displayName ?: user.email?.substringBefore("@") ?: "Usuario",
                                     reservaId = reservaId,
                                     servicioId = servicioId,
-                                    rating = rating,
-                                    comentario = comentario.trim()
+                                    servicioTitle = servicioTitle,
+                                    estrellas = rating,
+                                    texto = comentario.trim()
                                 )
                             }.onSuccess { onSuccess() }
                              .onFailure { enviando = false; error = "Error al enviar. Intentá de nuevo." }

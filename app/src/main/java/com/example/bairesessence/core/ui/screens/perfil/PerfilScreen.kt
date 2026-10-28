@@ -91,7 +91,7 @@ fun PerfilScreen(navController: NavController) {
             // Load profile
             db.collection("users").document(userId).get()
                 .addOnSuccessListener { doc ->
-                    fullName = doc.getString("fullName") ?: doc.getString("fullname") ?: user?.displayName ?: ""
+                    fullName = doc.getString("fullname") ?: user?.displayName ?: ""
                     cargando = false
                 }
                 .addOnFailureListener { cargando = false }
@@ -236,7 +236,7 @@ fun PerfilScreen(navController: NavController) {
                     if (userId != null && fullName.isNotBlank()) {
                         guardando = true
                         db.collection("users").document(userId)
-                            .set(mapOf("fullName" to fullName.trim(), "fullname" to fullName.trim(),
+                            .set(mapOf("fullname" to fullName.trim(),
                                 "email" to (user?.email ?: "")), SetOptions.merge())
                             .addOnSuccessListener { guardando = false; guardado = true }
                             .addOnFailureListener { guardando = false }

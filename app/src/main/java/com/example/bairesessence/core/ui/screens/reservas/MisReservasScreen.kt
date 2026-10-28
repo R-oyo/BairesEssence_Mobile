@@ -19,11 +19,13 @@ import com.example.bairesessence.core.ui.components.DateRangePickerDialog
 import com.example.bairesessence.core.ui.components.ResenaDialog
 import com.example.bairesessence.core.ui.theme.*
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MisReservasScreen(navController: NavController) {
     val user = FirebaseAuth.getInstance().currentUser
+    val scope = rememberCoroutineScope()
     val vm: ReservasViewModel = viewModel()
     val reservas by vm.reservas.collectAsState()
     val cargando by vm.cargando.collectAsState()
@@ -42,6 +44,8 @@ fun MisReservasScreen(navController: NavController) {
     var pasajerosTarget by remember { mutableStateOf<Pair<String, List<Map<String, Any>>>?>(null) }
     var cancelarTarget by remember { mutableStateOf<String?>(null) }
     var editFechasTarget by remember { mutableStateOf<Triple<String, String, String>?>(null) }
+    var confirmarTarget by remember { mutableStateOf<String?>(null) }
+    var pasajerosNombradosTarget by remember { mutableStateOf<Pair<String, List<Map<String, Any>>>?>(null) }
 
     LaunchedEffect(user?.uid) {
         if (user?.uid != null) vm.cargar(user.uid)
@@ -49,6 +53,7 @@ fun MisReservasScreen(navController: NavController) {
 
     val estadoColor = { e: String ->
         when (e) {
+            "confirmada_usuario" -> BEPrimary
             "confirmada" -> BEPrimary
             "pagada"     -> BESuccess
             "cancelada"  -> BEError
@@ -58,6 +63,7 @@ fun MisReservasScreen(navController: NavController) {
     }
     val estadoLabel = { e: String ->
         when (e) {
+            "confirmada_usuario" -> "Esperando seller"
             "confirmada" -> "Confirmada"
             "pagada"     -> "Pagada"
             "cancelada"  -> "Cancelada"
@@ -207,6 +213,16 @@ fun MisReservasScreen(navController: NavController) {
                                     }
                                 }
 
+                                // Esperando al seller — ya confirmaste tu parte
+                                if (estado == "confirmada_usuario") {
+                                    Spacer(Modifier.height(8.dp))
+                                    Surface(shape = RoundedCornerShape(8.dp), color = BEPrimary.copy(0.08f)) {
+                                        Text("🕐 Confirmaste tu parte. Estamos esperando que el seller confirme para habilitar el pago.",
+                                            modifier = Modifier.padding(8.dp),
+                                            style = MaterialTheme.typography.bodySmall, color = BEPrimary)
+                                    }
+                                }
+
                                 // Editar pasajeros y fechas — solo pendientes
                                 if (estado == "pendiente" && svcs != null) {
                                     Spacer(Modifier.height(10.dp))
@@ -222,12 +238,30 @@ fun MisReservasScreen(navController: NavController) {
                                         )
                                     }
                                     OutlinedButton(
+                                        onClick = {
+                                            @Suppress("UNCHECKED_CAST")
+                                            val pasajerosActuales = (r["pasajeros"] as? List<*>)
+                                                ?.mapNotNull { it as? Map<String, Any> }
+                                                ?.takeIf { it.isNotEmpty() }
+                                                ?: listOf(mapOf(
+                                                    "nombre" to (r["fullname"] as? String ?: ""),
+                                                    "dni" to "", "fechaNacimiento" to ""
+                                                ))
+                                            pasajerosNombradosTarget = Pair(reservaId, pasajerosActuales)
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = BEWarning),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, BEWarning.copy(0.5f))
+                                    ) { Text("🧑‍💼 Pasajeros (nombre y DNI)", fontWeight = FontWeight.SemiBold) }
+                                    Spacer(Modifier.height(6.dp))
+                                    OutlinedButton(
                                         onClick = { pasajerosTarget = Pair(reservaId, serviciosList) },
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = BEWarning),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, BEWarning.copy(0.5f))
-                                    ) { Text("👥 Editar pasajeros / experiencias", fontWeight = FontWeight.SemiBold) }
+                                    ) { Text("👥 Cantidad por actividad", fontWeight = FontWeight.SemiBold) }
                                     Spacer(Modifier.height(6.dp))
                                     OutlinedButton(
                                         onClick = {
@@ -242,6 +276,26 @@ fun MisReservasScreen(navController: NavController) {
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = BEPrimary),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, BEPrimary.copy(0.4f))
                                     ) { Text("📅 Modificar fechas", fontWeight = FontWeight.SemiBold) }
+                                    Spacer(Modifier.height(6.dp))
+                                    Button(
+                                        onClick = {
+                                            @Suppress("UNCHECKED_CAST")
+                                            val titular = (r["pasajeros"] as? List<*>)
+                                                ?.firstOrNull() as? Map<String, Any>
+                                            val nombreOk = (titular?.get("nombre") as? String)?.isNotBlank() == true
+                                            val dniOk = (titular?.get("dni") as? String)?.isNotBlank() == true
+                                            if (nombreOk && dniOk) {
+                                                confirmarTarget = reservaId
+                                            } else {
+                                                scope.launch {
+                                                    snackbarHostState.showSnackbar("Completá nombre y DNI del titular en \"Pasajeros\" antes de confirmar.")
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
+                                    ) { Text("✅ Confirmar reserva", color = Color.White, fontWeight = FontWeight.SemiBold) }
                                     Spacer(Modifier.height(6.dp))
                                     OutlinedButton(
                                         onClick = { cancelarTarget = reservaId },
@@ -294,6 +348,17 @@ fun MisReservasScreen(navController: NavController) {
         }
     }
 
+    pasajerosNombradosTarget?.let { (rId, pasajeros) ->
+        PasajerosNombradosDialog(
+            pasajeros = pasajeros,
+            onDismiss = { pasajerosNombradosTarget = null },
+            onConfirm = { actualizados ->
+                vm.actualizarPasajerosNombrados(rId, actualizados)
+                pasajerosNombradosTarget = null
+            }
+        )
+    }
+
     resenaTarget?.let { (rId, sId, title) ->
         ResenaDialog(reservaId = rId, servicioId = sId, servicioTitle = title,
             onDismiss = { resenaTarget = null }, onSuccess = { resenaTarget = null })
@@ -337,6 +402,28 @@ fun MisReservasScreen(navController: NavController) {
         )
     }
 
+    confirmarTarget?.let { rId ->
+        AlertDialog(
+            onDismissRequest = { confirmarTarget = null },
+            containerColor = BESurface,
+            title = { Text("¿Confirmar reserva?", fontWeight = FontWeight.Bold, color = BETextPrimary) },
+            text = {
+                Text("Una vez confirmada, ya no vas a poder editar pasajeros ni fechas. El equipo la revisará para habilitar el pago.",
+                    style = MaterialTheme.typography.bodyMedium, color = BETextSecond)
+            },
+            confirmButton = {
+                Button(
+                    onClick = { vm.confirmarReserva(rId); confirmarTarget = null },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
+                ) { Text("Sí, confirmar", color = Color.White, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmarTarget = null }) { Text("Todavía no", color = BETextSecond) }
+            }
+        )
+    }
+
     editFechasTarget?.let { (rId, ci, co) ->
         DateRangePickerDialog(
             initialCheckin = ci,
@@ -348,6 +435,96 @@ fun MisReservasScreen(navController: NavController) {
             onDismiss = { editFechasTarget = null }
         )
     }
+}
+
+// Mismo esquema que el "pasajeros[]" de la web (titular en el índice 0 +
+// acompañantes, cada uno con nombre/dni/fechaNacimiento).
+@Composable
+private fun PasajerosNombradosDialog(
+    pasajeros: List<Map<String, Any>>,
+    onDismiss: () -> Unit,
+    onConfirm: (List<Map<String, Any>>) -> Unit
+) {
+    var nombres by remember { mutableStateOf(pasajeros.map { it["nombre"] as? String ?: "" }) }
+    var dnis by remember { mutableStateOf(pasajeros.map { it["dni"] as? String ?: "" }) }
+    var fechas by remember { mutableStateOf(pasajeros.map { it["fechaNacimiento"] as? String ?: "" }) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = BESurface,
+        title = { Text("Pasajeros", fontWeight = FontWeight.Bold, color = BETextPrimary) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                nombres.indices.forEach { i ->
+                    Card(shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = BESurfaceVar),
+                        modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically) {
+                                Text(if (i == 0) "Titular" else "Acompañante $i",
+                                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = BETextMuted)
+                                if (i != 0) {
+                                    TextButton(
+                                        onClick = {
+                                            nombres = nombres.toMutableList().also { it.removeAt(i) }
+                                            dnis = dnis.toMutableList().also { it.removeAt(i) }
+                                            fechas = fechas.toMutableList().also { it.removeAt(i) }
+                                        },
+                                        colors = ButtonDefaults.textButtonColors(contentColor = BEError)
+                                    ) { Text("Quitar", style = MaterialTheme.typography.labelSmall) }
+                                }
+                            }
+                            OutlinedTextField(
+                                value = nombres[i],
+                                onValueChange = { v -> nombres = nombres.toMutableList().also { it[i] = v } },
+                                label = { Text("Nombre completo") }, singleLine = true,
+                                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp),
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder)
+                            )
+                            OutlinedTextField(
+                                value = dnis[i],
+                                onValueChange = { v -> dnis = dnis.toMutableList().also { it[i] = v } },
+                                label = { Text("DNI / Pasaporte") }, singleLine = true,
+                                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp),
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder)
+                            )
+                            OutlinedTextField(
+                                value = fechas[i],
+                                onValueChange = { v -> fechas = fechas.toMutableList().also { it[i] = v } },
+                                label = { Text("Fecha nacimiento (dd/MM/yyyy)") }, singleLine = true,
+                                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp),
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BEPrimary, unfocusedBorderColor = BEBorder)
+                            )
+                        }
+                    }
+                }
+                TextButton(
+                    onClick = { nombres = nombres + ""; dnis = dnis + ""; fechas = fechas + "" },
+                    colors = ButtonDefaults.textButtonColors(contentColor = BEPrimary)
+                ) { Text("+ Agregar pasajero") }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val actualizados = nombres.indices.map { i ->
+                        mapOf(
+                            "nombre" to nombres[i].trim(),
+                            "dni" to dnis[i].trim(),
+                            "fechaNacimiento" to fechas[i].trim()
+                        )
+                    }
+                    onConfirm(actualizados)
+                },
+                enabled = nombres[0].isNotBlank(),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
+            ) { Text("Guardar", color = Color.White, fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar", color = BETextSecond) }
+        }
+    )
 }
 
 @Composable

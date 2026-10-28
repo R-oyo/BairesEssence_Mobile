@@ -2,68 +2,102 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Experiencias — lectura pública, escritura solo desde admin (consola)
-    match /servicios/{docId} {
-      allow read: if true;
-      allow write: if false;
-    }
-
-    // Favoritos — cada usuario lee y escribe solo los suyos
-    match /favoritos/{docId} {
-      allow read, delete: if request.auth != null
-                          && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null
-                    && request.resource.data.userId == request.auth.uid;
-    }
-
-    // Perfil de usuario — cada uno lee/edita el suyo; admin lee todos
+    // Usuarios — cada uno lee/edita el suyo; admin edita todos; admin/seller
+    // pueden leer cualquier perfil (necesario para las pantallas de gestión
+    // del lado web). El grupo familiar ("grupofamiliar") vive como array
+    // dentro de este mismo doc — ya cubierto por el "allow write" de acá
+    // arriba, no necesita regla propia (antes el móvil usaba una
+    // subcolección "familia" separada, invisible para la web).
     match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
-
-      match /familia/{docId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
+      allow read:  if request.auth != null
+                   && (request.auth.uid == userId || isAdmin() || isSeller());
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
 
       match /itinerary/{docId} {
         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
       }
     }
 
-    // Reservas — turista ve las suyas; admin y seller ven todas
-    match /reservas/{docId} {
+    // Servicios (experiencias) — lectura pública; escritura solo seller/admin
+    match /servicios/{id} {
+      allow read:  if true;
+      allow write: if request.auth != null && (isSeller() || isAdmin());
+    }
+
+    // Empresas — seller gestiona la suya, admin gestiona todas
+    match /companies/{id} {
+      allow read, write: if request.auth != null && (isSeller() || isAdmin());
+    }
+
+    // Reservas — turista ve/crea las suyas; admin y seller ven/editan todas.
+    //
+    // "userId" (UID de Firebase Auth) es el identificador canónico — tanto
+    // la app móvil como la web lo escriben al crear una reserva. El fallback
+    // por "email" en el read cubre únicamente las reservas viejas, creadas
+    // desde la web ANTES de que empezara a mandar userId (ver backfillUserId.js).
+    // Una vez corrido ese backfill en producción, se puede borrar el fallback.
+    match /reservas/{reservaId} {
       allow read: if request.auth != null && (
         resource.data.userId == request.auth.uid ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'seller']
+        resource.data.email == request.auth.token.email ||
+        isAdmin() || isSeller()
       );
       allow create: if request.auth != null
                     && request.resource.data.userId == request.auth.uid;
       allow update: if request.auth != null && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'seller'] ||
+        isAdmin() || isSeller() ||
         (resource.data.userId == request.auth.uid && resource.data.estado == 'pendiente')
       );
       allow delete: if false;
 
+      // Mensajes de reserva — chat entre usuario y seller.
+      // Campo unificado "autorId" (antes el móvil usaba "senderId"; los
+      // mensajes viejos con ese campo siguen siendo legibles, solo no se
+      // vuelven a escribir con ese nombre).
       match /mensajes/{msgId} {
         allow read: if request.auth != null && (
-          get(/databases/$(database)/documents/reservas/$(docId)).data.userId == request.auth.uid ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'seller']
+          get(/databases/$(database)/documents/reservas/$(reservaId)).data.userId == request.auth.uid ||
+          get(/databases/$(database)/documents/reservas/$(reservaId)).data.email == request.auth.token.email ||
+          isAdmin() || isSeller()
         );
         allow create: if request.auth != null
-          && request.resource.data.senderId == request.auth.uid
-          && (
-            get(/databases/$(database)/documents/reservas/$(docId)).data.userId == request.auth.uid ||
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'seller']
-          );
+                      && request.resource.data.autorId == request.auth.uid;
         allow update, delete: if false;
       }
     }
 
-    // Reseñas — crear autenticado, lectura pública
-    match /reviews/{docId} {
-      allow read: if true;
+    // Favoritos — unificado: ambos clientes usan la misma subcolección
+    // "favoritos/{userId}/items/{servicioId}".
+    match /favoritos/{userId}/items/{itemId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Reseñas — unificado: ambos clientes usan "resenas" (tipo:
+    // "experiencia" | "empresa" | "plataforma"). El móvil solo crea tipo
+    // "experiencia"; "reviews" queda deprecada (ver migración en
+    // scripts/backfillUserId.js).
+    match /resenas/{id} {
+      allow read:   if true;
       allow create: if request.auth != null;
-      allow update, delete: if false;
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Mensajes de contacto (formulario de la landing web) — cualquiera
+    // crea, solo admin lee
+    match /messages/{id} {
+      allow create: if true;
+      allow read:   if isAdmin();
+    }
+
+    function isAdmin() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isSeller() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller';
     }
   }
 }

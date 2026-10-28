@@ -71,18 +71,29 @@ object FirestoreRepository {
         total: Double,
         acompanantes: List<Map<String, Any>> = emptyList()
     ): String? = try {
+        // "pasajeros" (mismo esquema que la web: titular + acompañantes,
+        // cada uno con nombre/dni/fechaNacimiento) en vez de "acompanantes"
+        // — ese campo nunca lo leía nadie, ni el móvil ni el seller web.
+        val titular = mapOf("nombre" to fullname, "dni" to "", "fechaNacimiento" to "")
+        val pasajeros = listOf(titular) + acompanantes.map {
+            mapOf(
+                "nombre" to (it["nombre"] ?: ""),
+                "dni" to (it["dni"] ?: ""),
+                "fechaNacimiento" to (it["fechaNacimiento"] ?: "")
+            )
+        }
         val data = hashMapOf(
-            "userId"       to userId,
-            "email"        to userEmail,
-            "fullname"     to fullname,
-            "checkin"      to checkin,
-            "checkout"     to checkout,
-            "servicios"    to servicios,
-            "personas"     to personas,
-            "total"        to total,
-            "acompanantes" to acompanantes,
-            "estado"       to "pendiente",
-            "timestamp"    to com.google.firebase.firestore.FieldValue.serverTimestamp()
+            "userId"     to userId,
+            "email"      to userEmail,
+            "fullname"   to fullname,
+            "checkin"    to checkin,
+            "checkout"   to checkout,
+            "servicios"  to servicios,
+            "personas"   to personas,
+            "total"      to total,
+            "pasajeros"  to pasajeros,
+            "estado"     to "pendiente",
+            "timestamp"  to com.google.firebase.firestore.FieldValue.serverTimestamp()
         )
         db.collection("reservas").add(data).await().id
     } catch (e: Exception) { e.printStackTrace(); null }
@@ -95,6 +106,19 @@ object FirestoreRepository {
             )).await()
     }
 
+    // Mismo contrato que la web (confirmarReservaPorUsuario en firestore.js):
+    // el turista confirma su parte -> el seller recién ahí puede confirmar
+    // la suya y habilitar el pago. Sin este paso la reserva queda trabada
+    // en "pendiente" para siempre del lado del seller.
+    suspend fun confirmarReservaPorUsuario(reservaId: String) {
+        db.collection("reservas").document(reservaId)
+            .update(mapOf(
+                "confirmadoPorUsuario" to true,
+                "estado" to "confirmada_usuario",
+                "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+            )).await()
+    }
+
     suspend fun actualizarFechasReserva(reservaId: String, checkin: String, checkout: String) {
         db.collection("reservas").document(reservaId)
             .update(mapOf("checkin" to checkin, "checkout" to checkout))
@@ -102,26 +126,33 @@ object FirestoreRepository {
     }
 
     // ── Favoritos ──────────────────────────────────────────
+    // Colección: favoritos/{userId}/items/{servicioId} (misma estructura que la web)
+    private fun favoritosRef(userId: String) =
+        db.collection("favoritos").document(userId).collection("items")
+
     suspend fun fetchFavoritoIds(userId: String): Set<String> =
-        db.collection("favoritos")
-            .whereEqualTo("userId", userId)
-            .get().await()
-            .documents.mapNotNull { it.getString("servicioId") }
-            .toSet()
+        favoritosRef(userId).get().await().documents.map { it.id }.toSet()
 
     suspend fun toggleFavorito(userId: String, servicioId: String): Boolean {
-        val query = db.collection("favoritos")
-            .whereEqualTo("userId", userId)
-            .whereEqualTo("servicioId", servicioId)
-            .get().await()
-        return if (query.isEmpty) {
-            db.collection("favoritos").add(
-                mapOf("userId" to userId, "servicioId" to servicioId)
+        val ref = favoritosRef(userId).document(servicioId)
+        return if (ref.get().await().exists()) {
+            ref.delete().await()
+            false
+        } else {
+            val servicio = fetchServicioById(servicioId)
+            ref.set(
+                mapOf(
+                    "id" to servicioId,
+                    "title" to (servicio?.title ?: ""),
+                    "image" to (servicio?.image ?: ""),
+                    "price" to (servicio?.precio?.toString() ?: ""),
+                    "categoria" to (servicio?.categoria ?: ""),
+                    "ubicacion" to (servicio?.ubicacion ?: ""),
+                    "duracion" to (servicio?.duracion ?: ""),
+                    "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                )
             ).await()
             true
-        } else {
-            query.documents.forEach { it.reference.delete().await() }
-            false
         }
     }
 
@@ -134,34 +165,47 @@ object FirestoreRepository {
     }
 
     // ── Reseñas ────────────────────────────────────────────
+    // Misma colección que la web ("resenas"): el móvil siempre crea
+    // reseñas de tipo "experiencia" (no tiene UI para calificar empresa
+    // o plataforma, a diferencia de la web).
     suspend fun addResena(
         userId: String,
         userEmail: String,
+        userName: String,
         reservaId: String,
         servicioId: String,
-        rating: Int,
-        comentario: String
+        servicioTitle: String,
+        estrellas: Int,
+        texto: String
     ) {
-        db.collection("reviews").add(
+        db.collection("resenas").add(
             mapOf(
-                "userId"     to userId,
-                "email"      to userEmail,
-                "reservaId"  to reservaId,
-                "servicioId" to servicioId,
-                "rating"     to rating,
-                "comentario" to comentario,
-                "timestamp"  to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                "tipo"             to "experiencia",
+                "referenciaId"     to servicioId,
+                "referenciaNombre" to servicioTitle,
+                "reservaId"        to reservaId,
+                "userId"           to userId,
+                "userName"         to userName,
+                "userEmail"        to userEmail,
+                "estrellas"        to estrellas,
+                "texto"            to texto,
+                "timestamp"        to com.google.firebase.firestore.FieldValue.serverTimestamp()
             )
         ).await()
     }
 
-    suspend fun sendMensaje(reservaId: String, senderId: String, senderEmail: String, texto: String) {
+    // Mismo esquema que la web (reservas/{id}/mensajes): autorId/autorNombre/autorRol.
+    // El móvil solo representa turistas, así que autorRol siempre es "usuario".
+    suspend fun sendMensaje(reservaId: String, autorId: String, autorNombre: String, texto: String) {
         db.collection("reservas").document(reservaId)
             .collection("mensajes")
             .add(mapOf(
                 "texto"       to texto,
-                "senderId"    to senderId,
-                "senderEmail" to senderEmail,
+                "autorId"     to autorId,
+                "autorNombre" to autorNombre,
+                "autorRol"    to "usuario",
+                "servicioId"  to null,
+                "leido"       to false,
                 "timestamp"   to com.google.firebase.firestore.FieldValue.serverTimestamp()
             )).await()
     }
@@ -171,38 +215,55 @@ object FirestoreRepository {
             .update(mapOf("servicios" to servicios, "total" to nuevoTotal)).await()
     }
 
-    // ── Familia ────────────────────────────────────────────
-    suspend fun fetchFamilia(userId: String): List<Map<String, Any>> =
-        db.collection("users").document(userId).collection("familia")
-            .get().await()
-            .documents.mapNotNull { doc ->
-                val d = doc.data?.toMutableMap() ?: return@mapNotNull null
-                d["id"] = doc.id
-                d
-            }
-
-    suspend fun agregarFamiliar(userId: String, data: Map<String, Any>): String? =
-        try { db.collection("users").document(userId).collection("familia").add(data).await().id }
-        catch (e: Exception) { null }
-
-    suspend fun eliminarFamiliar(userId: String, familiarId: String) {
-        db.collection("users").document(userId).collection("familia")
-            .document(familiarId).delete().await()
+    // Mismo contrato que updatePasajeros() de la web: reemplaza la lista
+    // completa de pasajeros nombrados (titular en el índice 0 + acompañantes).
+    suspend fun actualizarListaPasajeros(reservaId: String, pasajeros: List<Map<String, Any>>) {
+        db.collection("reservas").document(reservaId).update("pasajeros", pasajeros).await()
     }
 
+    // ── Familia ────────────────────────────────────────────
+    // Mismo esquema que la web: array "grupofamiliar" en users/{userId}
+    // (antes era una subcolección propia del móvil, invisible para la web).
+    @Suppress("UNCHECKED_CAST")
+    suspend fun fetchFamilia(userId: String): List<Map<String, Any>> {
+        val snap = db.collection("users").document(userId).get().await()
+        val lista = snap.get("grupofamiliar") as? List<*> ?: return emptyList()
+        return lista.mapNotNull { it as? Map<String, Any> }
+    }
+
+    suspend fun agregarFamiliar(userId: String, data: Map<String, Any>): String? = try {
+        val id = System.currentTimeMillis().toString()
+        val actual = fetchFamilia(userId)
+        val nuevo = actual + (data + ("id" to id))
+        db.collection("users").document(userId).update("grupofamiliar", nuevo).await()
+        id
+    } catch (e: Exception) { null }
+
+    suspend fun eliminarFamiliar(userId: String, familiarId: String) {
+        val actual = fetchFamilia(userId)
+        val nuevo = actual.filter { it["id"] != familiarId }
+        db.collection("users").document(userId).update("grupofamiliar", nuevo).await()
+    }
+
+    // Filtra "oculto" del lado del cliente (igual que hace la web) para no
+    // requerir un índice compuesto y para respetar la moderación del admin
+    // sin importar desde qué plataforma se creó la reseña.
     suspend fun fetchReviewsByServicio(servicioId: String): List<Map<String, Any>> =
-        db.collection("reviews")
-            .whereEqualTo("servicioId", servicioId)
+        db.collection("resenas")
+            .whereEqualTo("tipo", "experiencia")
+            .whereEqualTo("referenciaId", servicioId)
             .get().await()
             .documents.mapNotNull { doc ->
                 val d = doc.data?.toMutableMap() ?: return@mapNotNull null
+                if (d["oculto"] == true) return@mapNotNull null
                 d["id"] = doc.id
                 d
             }
             .sortedByDescending { (it["timestamp"] as? com.google.firebase.Timestamp)?.seconds }
 
     suspend fun hasUserReviewedReserva(userId: String, reservaId: String): Boolean =
-        !db.collection("reviews")
+        !db.collection("resenas")
+            .whereEqualTo("tipo", "experiencia")
             .whereEqualTo("userId", userId)
             .whereEqualTo("reservaId", reservaId)
             .get().await().isEmpty

@@ -105,9 +105,11 @@ fun ChatScreen(navController: NavController, reservaId: String) {
                     }
                 } else {
                     items(mensajes, key = { it["id"] as? String ?: it.hashCode().toString() }) { msg ->
-                        val esMio = msg["senderId"] == user?.uid
+                        // Igual que en la web: se alinea por rol, no por UID exacto
+                        // (cada chat tiene un turista y un seller, nunca más de uno de cada).
+                        val esMio = msg["autorRol"] == "usuario"
                         val msgTexto = msg["texto"] as? String ?: ""
-                        val senderEmail = (msg["senderEmail"] as? String)?.substringBefore("@") ?: "Equipo"
+                        val autorNombre = msg["autorNombre"] as? String ?: "Equipo"
                         val ts = msg["timestamp"] as? com.google.firebase.Timestamp
                         val hora = ts?.toDate()?.let {
                             SimpleDateFormat("HH:mm", Locale.getDefault()).format(it)
@@ -122,7 +124,7 @@ fun ChatScreen(navController: NavController, reservaId: String) {
                                 modifier = Modifier.widthIn(max = 280.dp)
                             ) {
                                 if (!esMio) {
-                                    Text(senderEmail,
+                                    Text(autorNombre,
                                         style = MaterialTheme.typography.labelSmall,
                                         color = BETextMuted,
                                         modifier = Modifier.padding(start = 4.dp, bottom = 2.dp))
@@ -190,8 +192,8 @@ fun ChatScreen(navController: NavController, reservaId: String) {
                                 runCatching {
                                     FirestoreRepository.sendMensaje(
                                         reservaId = reservaId,
-                                        senderId = user.uid,
-                                        senderEmail = user.email ?: "",
+                                        autorId = user.uid,
+                                        autorNombre = user.displayName ?: user.email ?: "",
                                         texto = temp
                                     )
                                 }.onFailure {

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -26,12 +27,31 @@ fun DateRangePickerDialog(
         timeZone = TimeZone.getTimeZone("UTC")
     }
 
+    // Igual que la web (min={hoy} en el date picker): no se puede elegir
+    // una fecha de check-in/check-out anterior a hoy.
+    val hoyUtcMillis = remember {
+        Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+    val selectableDates = remember(hoyUtcMillis) {
+        object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis >= hoyUtcMillis
+        }
+    }
+
     val state = rememberDateRangePickerState(
         initialSelectedStartDateMillis = runCatching { fmt.parse(initialCheckin)?.time }.getOrNull(),
-        initialSelectedEndDateMillis = runCatching { fmt.parse(initialCheckout)?.time }.getOrNull()
+        initialSelectedEndDateMillis = runCatching { fmt.parse(initialCheckout)?.time }.getOrNull(),
+        selectableDates = selectableDates
     )
 
-    val canConfirm = state.selectedStartDateMillis != null && state.selectedEndDateMillis != null
+    // Igual que la web (checkout <= checkin -> error): el picker de Material3
+    // permite elegir el mismo día para check-in y check-out, así que lo
+    // bloqueamos acá además de restringir fechas pasadas con selectableDates.
+    val canConfirm = state.selectedStartDateMillis != null && state.selectedEndDateMillis != null &&
+        state.selectedEndDateMillis!! > state.selectedStartDateMillis!!
 
     DatePickerDialog(
         onDismissRequest = onDismiss,

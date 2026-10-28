@@ -229,7 +229,7 @@ fun DetalleScreen(
                 ) {
                     Text("Reseñas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     if (reviews.isNotEmpty()) {
-                        val avg = reviews.mapNotNull { (it["rating"] as? Number)?.toDouble() }.average()
+                        val avg = reviews.mapNotNull { (it["estrellas"] as? Number)?.toDouble() }.average()
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("★", color = BEStarColor, style = MaterialTheme.typography.bodyMedium)
                             Spacer(Modifier.width(3.dp))
@@ -244,9 +244,9 @@ fun DetalleScreen(
                         style = MaterialTheme.typography.bodyMedium, color = BETextMuted)
                 } else {
                     reviews.take(5).forEach { r ->
-                        val rVal = (r["rating"] as? Number)?.toInt()?.coerceIn(0, 5) ?: 0
-                        val comment = r["comentario"] as? String
-                        val author = (r["email"] as? String)?.substringBefore("@") ?: "Usuario"
+                        val rVal = (r["estrellas"] as? Number)?.toInt()?.coerceIn(0, 5) ?: 0
+                        val comment = r["texto"] as? String
+                        val author = r["userName"] as? String ?: "Usuario"
                         Card(
                             shape = RoundedCornerShape(10.dp),
                             colors = CardDefaults.cardColors(containerColor = BESurfaceVar),

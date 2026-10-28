@@ -74,6 +74,37 @@ class ReservasViewModel : ViewModel() {
         }
     }
 
+    fun actualizarPasajerosNombrados(reservaId: String, pasajeros: List<Map<String, Any>>) {
+        viewModelScope.launch {
+            runCatching { FirestoreRepository.actualizarListaPasajeros(reservaId, pasajeros) }
+                .onSuccess {
+                    _reservas.update { lista ->
+                        lista.map { r ->
+                            if (r["id"] == reservaId) r.toMutableMap().apply { put("pasajeros", pasajeros) } else r
+                        }
+                    }
+                }
+                .onFailure { _mutacionError.value = "No se pudieron guardar los pasajeros. Intentá de nuevo." }
+        }
+    }
+
+    fun confirmarReserva(reservaId: String) {
+        viewModelScope.launch {
+            runCatching { FirestoreRepository.confirmarReservaPorUsuario(reservaId) }
+                .onSuccess {
+                    _reservas.update { lista ->
+                        lista.map { r ->
+                            if (r["id"] == reservaId) r.toMutableMap().apply {
+                                put("estado", "confirmada_usuario")
+                                put("confirmadoPorUsuario", true)
+                            } else r
+                        }
+                    }
+                }
+                .onFailure { _mutacionError.value = "No se pudo confirmar la reserva. Intentá de nuevo." }
+        }
+    }
+
     fun actualizarFechas(reservaId: String, checkin: String, checkout: String) {
         viewModelScope.launch {
             runCatching { FirestoreRepository.actualizarFechasReserva(reservaId, checkin, checkout) }

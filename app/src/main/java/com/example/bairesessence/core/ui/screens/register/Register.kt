@@ -69,7 +69,6 @@ fun BairesEssenceRegister(navController: NavHostController) {
                                         "userId"   to uid,
                                         "email"    to email,
                                         "fullname" to name.trim(),
-                                        "fullName" to name.trim(),
                                         "role"     to "user",
                                         "activo"   to true
                                     ))
