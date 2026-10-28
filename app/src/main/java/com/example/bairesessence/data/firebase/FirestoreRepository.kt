@@ -60,6 +60,10 @@ object FirestoreRepository {
      * servicios[] con id/title/image/price/personas/lat/lng
      * estado: "pendiente"
      */
+    // Lanza IllegalStateException con un mensaje para mostrar al usuario si
+    // algún servicio del carrito no tiene cupo suficiente — el caller debe
+    // envolver el llamado en runCatching (a diferencia de antes, que
+    // devolvía null silenciosamente en cualquier error).
     suspend fun crearReserva(
         userId: String,
         userEmail: String,
@@ -70,7 +74,7 @@ object FirestoreRepository {
         personas: Int,
         total: Double,
         acompanantes: List<Map<String, Any>> = emptyList()
-    ): String? = try {
+    ): String? {
         // "pasajeros" (mismo esquema que la web: titular + acompañantes,
         // cada uno con nombre/dni/fechaNacimiento) en vez de "acompanantes"
         // — ese campo nunca lo leía nadie, ni el móvil ni el seller web.
@@ -95,8 +99,38 @@ object FirestoreRepository {
             "estado"     to "pendiente",
             "timestamp"  to com.google.firebase.firestore.FieldValue.serverTimestamp()
         )
-        db.collection("reservas").add(data).await().id
-    } catch (e: Exception) { e.printStackTrace(); null }
+
+        val servicioIds = servicios.mapNotNull { it["id"] as? String }
+        if (servicioIds.isEmpty()) {
+            return try { db.collection("reservas").add(data).await().id }
+            catch (e: Exception) { e.printStackTrace(); null }
+        }
+
+        // Mismo criterio que la web (saveReservaTransaccional): valida y
+        // descuenta cupoMaximo/cupoActual de cada servicio del carrito
+        // dentro de una sola transacción, antes de crear la reserva.
+        return db.runTransaction { transaction ->
+            servicios.forEach { s ->
+                val id = s["id"] as? String ?: return@forEach
+                val ref = db.collection("servicios").document(id)
+                val snap = transaction.get(ref)
+                val cupoMaximo = snap.getLong("cupoMaximo")
+                if (cupoMaximo != null) {
+                    val cupoActual = snap.getLong("cupoActual") ?: cupoMaximo
+                    val personasPedidas = (s["personas"] as? Number)?.toLong() ?: 1L
+                    if (cupoActual < personasPedidas) {
+                        throw IllegalStateException(
+                            "No hay suficiente cupo disponible para \"${s["title"] ?: "la experiencia"}\"."
+                        )
+                    }
+                    transaction.update(ref, "cupoActual", cupoActual - personasPedidas)
+                }
+            }
+            val reservaRef = db.collection("reservas").document()
+            transaction.set(reservaRef, data)
+            reservaRef.id
+        }.await()
+    }
 
     suspend fun cancelarReserva(reservaId: String) {
         db.collection("reservas").document(reservaId)
@@ -279,6 +313,22 @@ object FirestoreRepository {
                 d
             }
             .sortedByDescending { (it["timestamp"] as? com.google.firebase.Timestamp)?.seconds }
+
+    // Devuelve, de los servicioIds pasados, cuáles ya están en una reserva
+    // activa (no cancelada) del usuario. Mismo criterio que
+    // checkServiciosYaReservados() de la web, filtrando client-side contra
+    // el array "servicios" de cada reserva.
+    suspend fun checkServiciosYaReservados(userId: String, servicioIds: List<String>): List<String> {
+        val reservados = mutableSetOf<String>()
+        fetchReservasByUser(userId).forEach { r ->
+            if (r["estado"] == "cancelada") return@forEach
+            val svcs = r["servicios"] as? List<*> ?: return@forEach
+            svcs.filterIsInstance<Map<*, *>>().forEach { s ->
+                (s["id"] as? String)?.let { reservados.add(it) }
+            }
+        }
+        return servicioIds.filter { it in reservados }
+    }
 
     // ── Mapa ───────────────────────────────────────────────
     suspend fun fetchServiciosDeReserva(reservaId: String): List<Servicio> {

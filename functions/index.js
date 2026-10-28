@@ -1,4 +1,5 @@
 const { onRequest } = require("firebase-functions/v2/https");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { defineSecret, defineString } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const express = require("express");
@@ -14,6 +15,9 @@ const db = admin.firestore();
 const MP_ACCESS_TOKEN = defineSecret("MP_ACCESS_TOKEN");
 const PAYPAL_CLIENT_ID = defineSecret("PAYPAL_CLIENT_ID");
 const PAYPAL_CLIENT_SECRET = defineSecret("PAYPAL_CLIENT_SECRET");
+// Opcional: solo hace falta si la cuenta de EmailJS tiene "API calls" en
+// modo estricto (ver nota en onReservaCreada más abajo).
+const EMAILJS_PRIVATE_KEY = defineSecret("EMAILJS_PRIVATE_KEY");
 
 // ── Config no sensible (parámetros con default; se pueden fijar en deploy).
 const PAYPAL_SANDBOX = defineString("PAYPAL_SANDBOX", { default: "true" });
@@ -21,6 +25,12 @@ const APP_DOMAIN = defineString("APP_DOMAIN", { default: "https://www.mercadopag
 const MP_WEBHOOK_URL = defineString("MP_WEBHOOK_URL", {
   default: "https://baires-essence.web.app/webhook/mercadopago",
 });
+
+// EmailJS: vacíos por defecto -> onReservaCreada no manda nada hasta que
+// se configuren (ver instrucciones de deploy al final del archivo).
+const EMAILJS_SERVICE_ID = defineString("EMAILJS_SERVICE_ID", { default: "" });
+const EMAILJS_TEMPLATE_ID = defineString("EMAILJS_TEMPLATE_ID", { default: "" });
+const EMAILJS_PUBLIC_KEY = defineString("EMAILJS_PUBLIC_KEY", { default: "" });
 
 const app = express();
 app.use(express.json());
@@ -214,4 +224,56 @@ exports.api = onRequest(
     secrets: [MP_ACCESS_TOKEN, PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET],
   },
   app
+);
+
+// ── Email de confirmación — dispara con cualquier reserva nueva, sin
+// importar si la creó la web o el móvil (antes cada plataforma tenía su
+// propia lógica de email del lado cliente y ninguna corría en
+// producción). Si faltan los parámetros EMAILJS_*, no hace nada: es
+// seguro deployar esto ya, no manda nada hasta que se configure.
+//
+// Para activarlo:
+//   firebase deploy --only functions \
+//     --set-env-vars EMAILJS_SERVICE_ID=service_xxx,EMAILJS_TEMPLATE_ID=template_xxx,EMAILJS_PUBLIC_KEY=xxx
+//   (si la cuenta de EmailJS tiene "API calls" en modo estricto, además:
+//    firebase functions:secrets:set EMAILJS_PRIVATE_KEY)
+//
+// El template de EmailJS debe aceptar: fullname, email, checkin,
+// checkout, servicios (títulos separados por coma).
+exports.onReservaCreada = onDocumentCreated(
+  { document: "reservas/{reservaId}", region: "us-central1", secrets: [EMAILJS_PRIVATE_KEY] },
+  async (event) => {
+    const serviceId = EMAILJS_SERVICE_ID.value();
+    const templateId = EMAILJS_TEMPLATE_ID.value();
+    const publicKey = EMAILJS_PUBLIC_KEY.value();
+
+    if (!serviceId || !templateId || !publicKey) {
+      console.log("EmailJS no configurado — se omite el email de confirmación.");
+      return;
+    }
+
+    const reserva = event.data?.data();
+    if (!reserva?.email) return;
+
+    const privateKey = EMAILJS_PRIVATE_KEY.value();
+
+    try {
+      await axios.post("https://api.emailjs.com/api/v1.0/email/send", {
+        service_id: serviceId,
+        template_id: templateId,
+        user_id: publicKey,
+        ...(privateKey && { accessToken: privateKey }),
+        template_params: {
+          fullname: reserva.fullname || "",
+          email: reserva.email,
+          checkin: reserva.checkin || "",
+          checkout: reserva.checkout || "",
+          servicios: (reserva.servicios || []).map((s) => s.title).filter(Boolean).join(", "),
+        },
+      });
+      console.log(`✅ Email de confirmación enviado para la reserva ${event.params.reservaId}`);
+    } catch (err) {
+      console.error("Error enviando email de confirmación:", err.response?.data || err.message);
+    }
+  }
 );

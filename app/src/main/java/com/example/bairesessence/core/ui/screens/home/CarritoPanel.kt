@@ -203,25 +203,41 @@ fun CarritoPanel(carritoVm: CarritoViewModel, navController: NavController, onCl
                                 mapOf("nombre" to nombre.trim(), "dni" to compDnis.getOrElse(i) { "" }.trim())
                             }.filter { (it["nombre"] as? String).orEmpty().isNotBlank() }
                         scope.launch {
+                            val yaReservados = FirestoreRepository.checkServiciosYaReservados(
+                                user!!.uid, state.items.map { it.servicioId }
+                            )
+                            if (yaReservados.isNotEmpty()) {
+                                val nombres = state.items.filter { it.servicioId in yaReservados }
+                                    .joinToString(", ") { it.title }
+                                error = "Ya tenés una reserva activa para: $nombres. Cancelala o esperá a que termine antes de reservarla de nuevo."
+                                guardando = false
+                                return@launch
+                            }
                             val serviciosMap = state.items.map { it2 ->
                                 mapOf("id" to it2.servicioId, "title" to it2.title, "image" to it2.image,
                                     "price" to it2.precio, "personas" to it2.personas,
                                     "lat" to it2.lat, "lng" to it2.lng)
                             }
-                            val id = FirestoreRepository.crearReserva(
-                                userId = user!!.uid, userEmail = user.email ?: "",
-                                fullname = user.displayName ?: user.email ?: "",
-                                checkin = state.checkin, checkout = state.checkout,
-                                servicios = serviciosMap,
-                                personas = state.items.sumOf { it2 -> it2.personas },
-                                total = carritoVm.total,
-                                acompanantes = acompMap
-                            )
-                            guardando = false
-                            if (id != null) {
-                                carritoVm.limpiar(); onClose()
-                                navController.navigate(Screen.ReservaExitosa.route)
-                            } else error = "Error al confirmar. Intentá de nuevo."
+                            runCatching {
+                                FirestoreRepository.crearReserva(
+                                    userId = user!!.uid, userEmail = user.email ?: "",
+                                    fullname = user.displayName ?: user.email ?: "",
+                                    checkin = state.checkin, checkout = state.checkout,
+                                    servicios = serviciosMap,
+                                    personas = state.items.sumOf { it2 -> it2.personas },
+                                    total = carritoVm.total,
+                                    acompanantes = acompMap
+                                )
+                            }.onSuccess { id ->
+                                guardando = false
+                                if (id != null) {
+                                    carritoVm.limpiar(); onClose()
+                                    navController.navigate(Screen.ReservaExitosa.route)
+                                } else error = "Error al confirmar. Intentá de nuevo."
+                            }.onFailure { e ->
+                                guardando = false
+                                error = e.message ?: "Error al confirmar. Intentá de nuevo."
+                            }
                         }
                     },
                     enabled = !guardando,
