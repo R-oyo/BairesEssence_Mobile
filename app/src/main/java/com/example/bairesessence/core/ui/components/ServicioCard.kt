@@ -8,6 +8,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.DirectionsBus
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.TheaterComedy
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -30,10 +36,11 @@ import com.example.bairesessence.data.model.Servicio
 fun RatingStars(rating: Double, modifier: Modifier = Modifier) {
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         repeat(5) { i ->
-            Text(
-                text = "★",
-                color = if (i < rating.toInt()) BEStarColor else BEBorder,
-                fontSize = 13.sp
+            Icon(
+                Icons.Default.Star,
+                contentDescription = null,
+                tint = if (i < rating.toInt()) BEStarColor else BEBorder,
+                modifier = Modifier.size(14.dp)
             )
         }
         Spacer(Modifier.width(4.dp))
@@ -123,7 +130,7 @@ fun ServicioCard(
                     color = BEPrimary
                 ) {
                     Text(
-                        "✓ En carrito",
+                        "En carrito",
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
@@ -179,11 +186,20 @@ fun ServicioCard(
                 verticalAlignment = Alignment.Bottom
             ) {
                 if (servicio.duracion.isNotBlank()) {
-                    Text(
-                        "⏱ ${servicio.duracion}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = BETextMuted
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Schedule,
+                            contentDescription = null,
+                            tint = BETextMuted,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            servicio.duracion,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = BETextMuted
+                        )
+                    }
                 }
                 if (servicio.tienePrecio) {
                     Column(horizontalAlignment = Alignment.End) {
@@ -226,18 +242,18 @@ private fun ImageShimmer() {
 
 @Composable
 private fun ImagePlaceholder(categoria: String) {
-    val emoji = when (categoria.lowercase()) {
-        "gastronomia", "gastronomía" -> "🍽️"
-        "traslados"  -> "🚌"
-        "experiencias" -> "🎭"
-        else -> "🗺️"
+    val icon = when (categoria.lowercase()) {
+        "gastronomia", "gastronomía" -> Icons.Default.Restaurant
+        "traslados"  -> Icons.Default.DirectionsBus
+        "experiencias" -> Icons.Default.TheaterComedy
+        else -> Icons.Default.Map
     }
     Box(
         Modifier.fillMaxWidth().height(180.dp).background(BESurface),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(emoji, style = MaterialTheme.typography.displaySmall)
+            Icon(icon, contentDescription = null, tint = BETextMuted, modifier = Modifier.size(36.dp))
             Spacer(Modifier.height(4.dp))
             Text("Sin imagen", style = MaterialTheme.typography.labelSmall, color = BETextMuted)
         }

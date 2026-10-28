@@ -6,6 +6,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -60,7 +62,7 @@ fun PaquetesScreen(navController: NavController) {
 
             fetchError -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("⚠️", style = MaterialTheme.typography.displayMedium)
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = BEError, modifier = Modifier.size(48.dp))
                     Spacer(Modifier.height(8.dp))
                     Text("Error al cargar paquetes", color = BEError, style = MaterialTheme.typography.titleSmall)
                 }
@@ -68,7 +70,7 @@ fun PaquetesScreen(navController: NavController) {
 
             paquetes.isEmpty() -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
-                    Text("✨", style = MaterialTheme.typography.displayLarge)
+                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = BETextMuted, modifier = Modifier.size(64.dp))
                     Spacer(Modifier.height(12.dp))
                     Text("No hay paquetes disponibles", style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold, color = BETextPrimary)

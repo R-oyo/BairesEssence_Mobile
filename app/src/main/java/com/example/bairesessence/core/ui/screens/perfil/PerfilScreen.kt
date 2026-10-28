@@ -225,7 +225,7 @@ fun PerfilScreen(navController: NavController) {
 
             if (guardado) {
                 Surface(shape = RoundedCornerShape(8.dp), color = BEPrimary.copy(0.1f)) {
-                    Text("✅ Perfil actualizado correctamente",
+                    Text("Perfil actualizado correctamente",
                         modifier = Modifier.fillMaxWidth().padding(12.dp),
                         color = BEPrimaryDark, style = MaterialTheme.typography.bodyMedium)
                 }
@@ -258,7 +258,7 @@ fun PerfilScreen(navController: NavController) {
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = BEPrimary),
                 border = androidx.compose.foundation.BorderStroke(1.dp, BEPrimary.copy(0.5f))
-            ) { Text("📋 Ver mis reservas", fontWeight = FontWeight.SemiBold) }
+            ) { Text("Ver mis reservas", fontWeight = FontWeight.SemiBold) }
 
             HorizontalDivider(color = BEBorder)
             Spacer(Modifier.height(4.dp))

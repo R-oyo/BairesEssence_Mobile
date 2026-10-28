@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -108,7 +109,7 @@ fun ItineraryScreen(navController: NavController) {
         } else if (actividades.isEmpty() && reservas.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("📅", style = MaterialTheme.typography.displayMedium)
+                    Icon(Icons.Default.DateRange, contentDescription = null, tint = BETextMuted, modifier = Modifier.size(48.dp))
                     Spacer(Modifier.height(8.dp))
                     Text("Aún no tenés actividades", style = MaterialTheme.typography.titleMedium, color = BETextSecondary)
                     Text("Tocá + para agregar una actividad", style = MaterialTheme.typography.bodyMedium, color = BETextMuted)

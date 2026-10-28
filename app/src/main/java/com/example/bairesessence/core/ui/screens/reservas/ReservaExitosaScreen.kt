@@ -38,7 +38,7 @@ fun ReservaExitosaScreen(navController: NavController) {
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
-            ) { Text("Ver mis reservas →", color = Color.White, fontWeight = FontWeight.Bold) }
+            ) { Text("Ver mis reservas", color = Color.White, fontWeight = FontWeight.Bold) }
             Spacer(Modifier.height(12.dp))
             OutlinedButton(
                 onClick = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Home.route) { inclusive = true } } },

@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -285,7 +286,7 @@ fun PagoDetalleScreen(navController: NavController, reservaId: String) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("⏳", style = MaterialTheme.typography.bodyLarge)
+                            Icon(Icons.Default.HourglassEmpty, contentDescription = null, tint = BEWarning, modifier = Modifier.size(20.dp))
                             Column {
                                 Text(
                                     "Reserva pendiente de confirmación",
@@ -307,7 +308,7 @@ fun PagoDetalleScreen(navController: NavController, reservaId: String) {
                 AnimatedVisibility(visible = error != null) {
                     Surface(shape = RoundedCornerShape(10.dp), color = BEError.copy(alpha = 0.1f)) {
                         Text(
-                            "⚠️ ${error.orEmpty()}",
+                            error.orEmpty(),
                             modifier = Modifier.fillMaxWidth().padding(12.dp),
                             style = MaterialTheme.typography.bodySmall,
                             color = BEError
@@ -334,7 +335,7 @@ fun PagoDetalleScreen(navController: NavController, reservaId: String) {
                             Text("Iniciando pago...", color = Color.White, fontWeight = FontWeight.Bold)
                         } else {
                             Text(
-                                "💳  Pagar con MercadoPago",
+                                "Pagar con MercadoPago",
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.bodyLarge
@@ -353,7 +354,7 @@ fun PagoDetalleScreen(navController: NavController, reservaId: String) {
                         border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF003087))
                     ) {
                         Text(
-                            "🅿  Pagar con PayPal",
+                            "Pagar con PayPal",
                             color = Color(0xFF003087),
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.bodyLarge

@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -85,7 +86,7 @@ fun PaqueteDetalleScreen(
         } else if (fetchError) {
             Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("⚠️", style = MaterialTheme.typography.displayMedium)
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = BEError, modifier = Modifier.size(48.dp))
                     Spacer(Modifier.height(8.dp))
                     Text("Error al cargar el paquete", color = BEError, style = MaterialTheme.typography.titleSmall)
                 }
@@ -243,7 +244,7 @@ fun PaqueteDetalleScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
                         ) {
                             Text(
-                                "✨  Agregar paquete al carrito",
+                                "Agregar paquete al carrito",
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.bodyLarge

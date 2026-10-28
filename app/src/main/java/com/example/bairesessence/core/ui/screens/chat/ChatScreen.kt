@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -94,7 +95,7 @@ fun ChatScreen(navController: NavController, reservaId: String) {
                     item {
                         Box(Modifier.fillParentMaxWidth().padding(top = 48.dp), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("💬", style = MaterialTheme.typography.displayMedium)
+                                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, tint = BETextMuted, modifier = Modifier.size(48.dp))
                                 Spacer(Modifier.height(8.dp))
                                 Text("Todavía no hay mensajes",
                                     style = MaterialTheme.typography.bodyMedium, color = BETextMuted)

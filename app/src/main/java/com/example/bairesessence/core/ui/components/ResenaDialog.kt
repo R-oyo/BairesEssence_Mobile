@@ -2,6 +2,8 @@ package com.example.bairesessence.core.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -77,10 +79,11 @@ fun ResenaDialog(
                             contentPadding = PaddingValues(4.dp),
                             modifier = Modifier.size(40.dp)
                         ) {
-                            Text(
-                                "★",
-                                fontSize = 28.sp,
-                                color = if (i < rating) BEStarColor else BEBorder
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = "${i + 1} estrellas",
+                                tint = if (i < rating) BEStarColor else BEBorder,
+                                modifier = Modifier.size(28.dp)
                             )
                         }
                     }

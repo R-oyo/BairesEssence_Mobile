@@ -6,6 +6,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -66,7 +68,7 @@ fun FavoritosScreen(navController: NavController) {
 
             fetchError -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("⚠️", style = MaterialTheme.typography.displayMedium)
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = BEError, modifier = Modifier.size(48.dp))
                     Spacer(Modifier.height(8.dp))
                     Text("Error al cargar favoritos", color = BEError, style = MaterialTheme.typography.titleSmall)
                 }
@@ -74,12 +76,12 @@ fun FavoritosScreen(navController: NavController) {
 
             favoritos.isEmpty() -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
-                    Text("🤍", style = MaterialTheme.typography.displayLarge)
+                    Icon(Icons.Default.FavoriteBorder, contentDescription = null, tint = BETextMuted, modifier = Modifier.size(64.dp))
                     Spacer(Modifier.height(12.dp))
                     Text("Todavía no guardaste nada", style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold, color = BETextPrimary)
                     Spacer(Modifier.height(6.dp))
-                    Text("Presioná el ❤ en cualquier experiencia para guardarla aquí.",
+                    Text("Presioná el corazón en cualquier experiencia para guardarla aquí.",
                         style = MaterialTheme.typography.bodyMedium, color = BETextSecond)
                     Spacer(Modifier.height(20.dp))
                     Button(
@@ -106,7 +108,7 @@ fun FavoritosScreen(navController: NavController) {
                             style = MaterialTheme.typography.bodySmall, color = BETextMuted
                         )
                         TextButton(onClick = { navController.navigate("mapa_filtrado/favoritos") }) {
-                            Text("Ver en mapa 🗺️", color = BEPrimary, style = MaterialTheme.typography.bodySmall)
+                            Text("Ver en mapa", color = BEPrimary, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }

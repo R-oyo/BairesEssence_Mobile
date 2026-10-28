@@ -4,6 +4,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -95,7 +98,7 @@ fun LandingScreen(navController: NavHostController) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                TrustBadge("★ 4.9", "Valoración media")
+                TrustBadge("4.9", "Valoración media", icon = Icons.Default.Star)
                 TrustBadge("500+", "Experiencias")
                 TrustBadge("10k+", "Viajeros")
             }
@@ -138,9 +141,15 @@ fun LandingScreen(navController: NavHostController) {
 }
 
 @Composable
-private fun TrustBadge(value: String, label: String) {
+private fun TrustBadge(value: String, label: String, icon: ImageVector? = null) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = BEPrimaryLight)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, tint = BEPrimaryLight, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(2.dp))
+            }
+            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = BEPrimaryLight)
+        }
         Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(0.7f))
     }
 }

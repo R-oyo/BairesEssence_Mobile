@@ -1,4 +1,4 @@
-﻿package com.example.bairesessence.core.ui.screens.home
+package com.example.bairesessence.core.ui.screens.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -13,6 +13,11 @@ import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,12 +44,12 @@ import com.example.bairesessence.data.model.Servicio
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
-// (clave Firestore, tÃ­tulo con emoji para el carrusel)
+// (clave Firestore, título visible en el carrusel)
 private val CATEGORIAS = listOf(
-    "Tours"         to "ðŸ—ºï¸  Tours",
-    "Gastronomia"   to "ðŸ½ï¸  GastronomÃ­a",
-    "Traslados"     to "ðŸšŒ  Traslados",
-    "Experiencias"  to "ðŸŽ­  Experiencias"
+    "Tours"         to "Tours",
+    "Gastronomia"   to "Gastronomía",
+    "Traslados"     to "Traslados",
+    "Experiencias"  to "Experiencias"
 )
 
 @Composable
@@ -87,7 +92,7 @@ fun CatalogoScreen(
         homeVm.cargar(user?.uid)
     }
 
-    // Filtra por fechas (se aplica siempre, tanto al carrusel como a bÃºsqueda)
+    // Filtra por fechas (se aplica siempre, tanto al carrusel como a búsqueda)
     val porFecha = servicios.filter { s ->
         val ci = carritoState.checkin; val co = carritoState.checkout
         if (ci.isBlank() || co.isBlank() || (s.from == null && s.until == null)) return@filter true
@@ -102,11 +107,11 @@ fun CatalogoScreen(
             else -> true
         }
     }
-    // Resultados de bÃºsqueda textual
+    // Resultados de búsqueda textual
     val resultados = if (busqueda.isNotBlank())
         porFecha.filter { it.title.contains(busqueda, true) || it.description.contains(busqueda, true) }
     else emptyList()
-    // Secciones del carrusel agrupadas por categorÃ­a
+    // Secciones del carrusel agrupadas por categoría
     val seccionesCarrusel = CATEGORIAS.mapNotNull { (key, titulo) ->
         val svcs = porFecha.filter { it.categoria.equals(key, true) }
         if (svcs.isNotEmpty()) Pair(titulo, svcs) else null
@@ -119,7 +124,7 @@ fun CatalogoScreen(
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
 
-                // â”€â”€ Banner verificaciÃ³n de email
+                // ── Banner verificación de email
                 val authUser = FirebaseAuth.getInstance().currentUser
                 val isGoogleUser = authUser?.providerData?.any { it.providerId == "google.com" } == true
                 if (authUser != null && !emailVerificado && !isGoogleUser) {
@@ -138,10 +143,10 @@ fun CatalogoScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Column(modifier = androidx.compose.ui.Modifier.weight(1f)) {
-                                        Text("VerificÃ¡ tu email", fontWeight = FontWeight.SemiBold,
+                                        Text("Verificá tu email", fontWeight = FontWeight.SemiBold,
                                             style = MaterialTheme.typography.bodySmall,
                                             color = androidx.compose.ui.graphics.Color(0xFF7D5700))
-                                        Text(if (sent) "Mail enviado. RevisÃ¡ tu bandeja." else "Tu cuenta no estÃ¡ verificada.",
+                                        Text(if (sent) "Mail enviado. Revisá tu bandeja." else "Tu cuenta no está verificada.",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = androidx.compose.ui.graphics.Color(0xFF7D5700))
                                     }
@@ -152,8 +157,9 @@ fun CatalogoScreen(
                                         }
                                     }
                                     TextButton(onClick = { dismissed = true }) {
-                                        Text("âœ•", style = MaterialTheme.typography.bodySmall,
-                                            color = androidx.compose.ui.graphics.Color(0xFF7D5700))
+                                        Icon(Icons.Default.Close, contentDescription = "Cerrar",
+                                            tint = androidx.compose.ui.graphics.Color(0xFF7D5700),
+                                            modifier = Modifier.size(16.dp))
                                     }
                                 }
                             }
@@ -161,7 +167,7 @@ fun CatalogoScreen(
                     }
                 }
 
-                // â”€â”€ Dark header
+                // ── Dark header
                 item {
                     Column(modifier = Modifier.background(BEDark).padding(horizontal = 20.dp, vertical = 16.dp)) {
                         Row(
@@ -216,23 +222,26 @@ fun CatalogoScreen(
 
                         Spacer(Modifier.height(8.dp))
 
-                        // Date chip â€” optional, opens inline dialog
+                        // Date chip — optional, opens inline dialog
                         TextButton(
                             onClick = { mostrarFechasDialog = true },
                             colors = ButtonDefaults.textButtonColors(contentColor = BEPrimaryLight)
                         ) {
                             if (carritoState.checkin.isNotBlank()) {
-                                Text("ðŸ“… ${carritoState.checkin}  â†’  ${carritoState.checkout}  âœï¸",
+                                Text("${carritoState.checkin} → ${carritoState.checkout}",
                                     style = MaterialTheme.typography.bodySmall)
+                                Spacer(Modifier.width(6.dp))
+                                Icon(Icons.Default.Edit, contentDescription = "Editar fechas",
+                                    modifier = Modifier.size(14.dp))
                             } else {
-                                Text("ðŸ“… Agregar fechas de viaje  â†’",
+                                Text("Agregar fechas de viaje",
                                     style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
                 }
 
-                // â”€â”€ Skeleton mientras carga
+                // ── Skeleton mientras carga
                 if (cargando) {
                     items(3) {
                         Card(
@@ -254,7 +263,7 @@ fun CatalogoScreen(
                     item {
                         Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("âš ï¸", style = MaterialTheme.typography.displayMedium)
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = BEError, modifier = Modifier.size(48.dp))
                                 Spacer(Modifier.height(8.dp))
                                 Text("Error al cargar experiencias", color = BEError,
                                     style = MaterialTheme.typography.titleSmall)
@@ -262,7 +271,7 @@ fun CatalogoScreen(
                         }
                     }
                 } else if (busqueda.isNotBlank()) {
-                    // â”€â”€ Resultados de bÃºsqueda (lista vertical)
+                    // ── Resultados de búsqueda (lista vertical)
                     item {
                         Text(
                             "${resultados.size} resultado${if (resultados.size != 1) "s" else ""} para \"$busqueda\"",
@@ -274,11 +283,11 @@ fun CatalogoScreen(
                         item {
                             Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("ðŸ”", style = MaterialTheme.typography.displayMedium)
+                                    Icon(Icons.Default.Search, contentDescription = null, tint = BETextMuted, modifier = Modifier.size(48.dp))
                                     Spacer(Modifier.height(8.dp))
                                     Text("Sin resultados", style = MaterialTheme.typography.titleSmall, color = BETextSecond)
                                     TextButton(onClick = { busqueda = "" }) {
-                                        Text("Limpiar bÃºsqueda", color = BEPrimary)
+                                        Text("Limpiar búsqueda", color = BEPrimary)
                                     }
                                 }
                             }
@@ -297,12 +306,12 @@ fun CatalogoScreen(
                         }
                     }
                 } else {
-                    // â”€â”€ Carrusel por categorÃ­a (modo descubrimiento)
+                    // ── Carrusel por categoría (modo descubrimiento)
                     if (seccionesCarrusel.isEmpty()) {
                         item {
                             Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("ðŸ“…", style = MaterialTheme.typography.displayMedium)
+                                    Icon(Icons.Default.DateRange, contentDescription = null, tint = BETextMuted, modifier = Modifier.size(48.dp))
                                     Spacer(Modifier.height(8.dp))
                                     Text("No hay experiencias en esas fechas",
                                         style = MaterialTheme.typography.titleSmall, color = BETextSecond)
@@ -320,13 +329,16 @@ fun CatalogoScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    "âœ¨  Paquetes especiales",
+                                    "Paquetes especiales",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = BETextPrimary
                                 )
                                 TextButton(onClick = { navController.navigate(Screen.Paquetes.route) }) {
-                                    Text("Ver todos â†’", color = BEPrimary, style = MaterialTheme.typography.bodySmall)
+                                    Text("Ver todos", color = BEPrimary, style = MaterialTheme.typography.bodySmall)
+                                    Spacer(Modifier.width(4.dp))
+                                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null,
+                                        tint = BEPrimary, modifier = Modifier.size(14.dp))
                                 }
                             }
                         }
@@ -366,7 +378,7 @@ fun CatalogoScreen(
         CarritoPanel(carritoVm = carritoVm, navController = navController, onClose = { mostrarCarrito = false })
     }
 
-    // â”€â”€ Date picker dialog
+    // ── Date picker dialog
     if (mostrarFechasDialog) {
         DateRangePickerDialog(
             initialCheckin = carritoState.checkin,
@@ -383,7 +395,7 @@ fun CatalogoScreen(
     }
 }
 
-// â”€â”€ MainScreen
+// ── MainScreen
 @Composable
 fun MainScreen(navController: NavController, carritoVm: CarritoViewModel = viewModel()) {
     val homeVm: HomeViewModel = viewModel()

@@ -11,6 +11,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -137,10 +144,10 @@ fun DetalleScreen(
                 if (s.duracion.isNotBlank() || s.idioma.isNotBlank() || s.ubicacion.isNotBlank()) {
                     Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = BESurface)) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (s.duracion.isNotBlank()) InfoRow("⏱", "Duración", s.duracion)
-                            if (s.idioma.isNotBlank()) InfoRow("🌐", "Idioma", s.idioma)
-                            if (s.ubicacion.isNotBlank()) InfoRow("📍", "Ubicación", s.ubicacion)
-                            if (s.fechaDesde != null) InfoRow("📅", "Disponible", "${s.fechaDesde} → ${s.fechaHasta ?: "..."}")
+                            if (s.duracion.isNotBlank()) InfoRow(Icons.Default.Schedule, "Duración", s.duracion)
+                            if (s.idioma.isNotBlank()) InfoRow(Icons.Default.Language, "Idioma", s.idioma)
+                            if (s.ubicacion.isNotBlank()) InfoRow(Icons.Default.LocationOn, "Ubicación", s.ubicacion)
+                            if (s.fechaDesde != null) InfoRow(Icons.Default.DateRange, "Disponible", "${s.fechaDesde} → ${s.fechaHasta ?: "..."}")
                         }
                     }
                     Spacer(Modifier.height(16.dp))
@@ -157,7 +164,7 @@ fun DetalleScreen(
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = BEPrimary),
                         border = androidx.compose.foundation.BorderStroke(1.dp, BEPrimary.copy(0.4f))
-                    ) { Text("📍 Ver ubicación en Maps", fontWeight = FontWeight.SemiBold) }
+                    ) { Text("Ver ubicación en Maps", fontWeight = FontWeight.SemiBold) }
                 }
 
                 Spacer(Modifier.height(16.dp))
@@ -169,7 +176,7 @@ fun DetalleScreen(
                     Spacer(Modifier.height(16.dp))
                     Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFEEF2FF))) {
                         Column(Modifier.padding(16.dp)) {
-                            Text("✅ ¿Qué incluye?", style = MaterialTheme.typography.titleSmall,
+                            Text("¿Qué incluye?", style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold, color = BEPrimaryDark)
                             Spacer(Modifier.height(4.dp))
                             Text(s.incluye, style = MaterialTheme.typography.bodyMedium, color = BEPrimary)
@@ -188,7 +195,7 @@ fun DetalleScreen(
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF25D366)),
                         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF25D366).copy(0.5f))
-                    ) { Text("💬 Consultar por WhatsApp", fontWeight = FontWeight.SemiBold) }
+                    ) { Text("Consultar por WhatsApp", fontWeight = FontWeight.SemiBold) }
                 }
 
                 // Selector de personas
@@ -231,7 +238,7 @@ fun DetalleScreen(
                     if (reviews.isNotEmpty()) {
                         val avg = reviews.mapNotNull { (it["estrellas"] as? Number)?.toDouble() }.average()
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("★", color = BEStarColor, style = MaterialTheme.typography.bodyMedium)
+                            Icon(Icons.Default.Star, contentDescription = null, tint = BEStarColor, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(3.dp))
                             Text("${"%.1f".format(avg)} (${reviews.size})",
                                 style = MaterialTheme.typography.bodySmall, color = BETextMuted)
@@ -261,8 +268,16 @@ fun DetalleScreen(
                                 ) {
                                     Text(author, style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.SemiBold, color = BETextPrimary)
-                                    Text("★".repeat(rVal) + "☆".repeat(5 - rVal),
-                                        color = BEStarColor, style = MaterialTheme.typography.bodySmall)
+                                    Row {
+                                        repeat(5) { i ->
+                                            Icon(
+                                                if (i < rVal) Icons.Default.Star else Icons.Default.StarBorder,
+                                                contentDescription = null,
+                                                tint = BEStarColor,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
                                 }
                                 if (!comment.isNullOrBlank()) {
                                     Spacer(Modifier.height(4.dp))
@@ -312,7 +327,7 @@ fun DetalleScreen(
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = BEError)
                 ) {
-                    Text("✅ En carrito — Quitar", fontWeight = FontWeight.Bold)
+                    Text("En carrito — Quitar", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -320,9 +335,9 @@ fun DetalleScreen(
 }
 
 @Composable
-private fun InfoRow(emoji: String, label: String, value: String) {
+private fun InfoRow(icon: ImageVector, label: String, value: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(emoji, style = MaterialTheme.typography.bodyMedium)
+        Icon(icon, contentDescription = null, tint = BEPrimary, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Column {
             Text(label, style = MaterialTheme.typography.labelSmall, color = BETextMuted)

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -114,7 +115,7 @@ fun MapaScreen(navController: NavController, filter: String = "all") {
                             Modifier.padding(16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text("📍", style = MaterialTheme.typography.titleLarge)
+                            Icon(Icons.Default.LocationOn, contentDescription = null, tint = BETextMuted, modifier = Modifier.size(24.dp))
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 "No hay experiencias con ubicación para mostrar",
@@ -168,7 +169,7 @@ fun MapaScreen(navController: NavController, filter: String = "all") {
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
                 ) {
-                    Text("Ver detalle →", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Ver detalle", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         }

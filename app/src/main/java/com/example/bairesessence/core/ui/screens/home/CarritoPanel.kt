@@ -2,6 +2,9 @@ package com.example.bairesessence.core.ui.screens.home
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Luggage
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -52,7 +55,7 @@ fun CarritoPanel(carritoVm: CarritoViewModel, navController: NavController, onCl
                     if (state.items.isEmpty()) {
                         Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("🧳", style = MaterialTheme.typography.displayMedium)
+                                Icon(Icons.Default.Luggage, contentDescription = null, tint = BETextMuted, modifier = Modifier.size(48.dp))
                                 Spacer(Modifier.height(8.dp))
                                 Text("Tu carrito está vacío", color = BETextSecond,
                                     style = MaterialTheme.typography.bodyMedium)
@@ -61,7 +64,7 @@ fun CarritoPanel(carritoVm: CarritoViewModel, navController: NavController, onCl
                     } else {
                         if (state.checkin.isNotBlank()) {
                             Surface(shape = RoundedCornerShape(8.dp), color = BEPrimary.copy(0.08f)) {
-                                Text("📅 ${state.checkin}  →  ${state.checkout}",
+                                Text("${state.checkin} → ${state.checkout}",
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                     style = MaterialTheme.typography.bodySmall, color = BEPrimaryDark,
                                     fontWeight = FontWeight.Medium)
@@ -95,7 +98,7 @@ fun CarritoPanel(carritoVm: CarritoViewModel, navController: NavController, onCl
                                         }
                                         IconButton(onClick = { carritoVm.quitarItem(item.servicioId) },
                                             modifier = Modifier.size(28.dp)) {
-                                            Text("✕", color = BEError, style = MaterialTheme.typography.labelSmall)
+                                            Icon(Icons.Default.Close, contentDescription = "Quitar del carrito", tint = BEError, modifier = Modifier.size(16.dp))
                                         }
                                     }
                                 }
@@ -192,7 +195,7 @@ fun CarritoPanel(carritoVm: CarritoViewModel, navController: NavController, onCl
                         },
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
-                    ) { Text("Continuar →", color = Color.White, fontWeight = FontWeight.Bold) }
+                    ) { Text("Continuar", color = Color.White, fontWeight = FontWeight.Bold) }
                 }
             } else {
                 Button(
@@ -246,7 +249,7 @@ fun CarritoPanel(carritoVm: CarritoViewModel, navController: NavController, onCl
                 ) {
                     if (guardando) CircularProgressIndicator(color = Color.White,
                         modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    else Text("Confirmar reserva →", color = Color.White, fontWeight = FontWeight.Bold)
+                    else Text("Confirmar reserva", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         },
@@ -254,7 +257,7 @@ fun CarritoPanel(carritoVm: CarritoViewModel, navController: NavController, onCl
             if (paso == 0) {
                 TextButton(onClick = onClose) { Text("Cerrar", color = BETextSecond) }
             } else {
-                TextButton(onClick = { paso = 0; error = null }) { Text("← Volver", color = BETextSecond) }
+                TextButton(onClick = { paso = 0; error = null }) { Text("Volver", color = BETextSecond) }
             }
         }
     )

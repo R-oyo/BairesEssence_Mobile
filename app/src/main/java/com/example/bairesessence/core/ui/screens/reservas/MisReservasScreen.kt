@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Luggage
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -92,7 +95,7 @@ fun MisReservasScreen(navController: NavController) {
 
             fetchError -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("⚠️", style = MaterialTheme.typography.displayMedium)
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = BEError, modifier = Modifier.size(48.dp))
                     Spacer(Modifier.height(8.dp))
                     Text("Error al cargar reservas", color = BEError, style = MaterialTheme.typography.titleSmall)
                 }
@@ -100,7 +103,7 @@ fun MisReservasScreen(navController: NavController) {
 
             reservas.isEmpty() -> Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🧳", style = MaterialTheme.typography.displayLarge)
+                    Icon(Icons.Default.Luggage, contentDescription = null, tint = BETextMuted, modifier = Modifier.size(64.dp))
                     Spacer(Modifier.height(8.dp))
                     Text("No tenés reservas todavía", style = MaterialTheme.typography.titleMedium, color = BETextSecond)
                     Spacer(Modifier.height(12.dp))
@@ -108,7 +111,7 @@ fun MisReservasScreen(navController: NavController) {
                         onClick = { navController.navigate("home") },
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
-                    ) { Text("Explorar experiencias →", color = Color.White, fontWeight = FontWeight.Bold) }
+                    ) { Text("Explorar experiencias", color = Color.White, fontWeight = FontWeight.Bold) }
                 }
             }
 
@@ -175,7 +178,7 @@ fun MisReservasScreen(navController: NavController) {
                                 if (!motivo.isNullOrBlank()) {
                                     Spacer(Modifier.height(8.dp))
                                     Surface(shape = RoundedCornerShape(8.dp), color = BEError.copy(0.08f)) {
-                                        Text("❌ $motivo", modifier = Modifier.padding(8.dp),
+                                        Text(motivo, modifier = Modifier.padding(8.dp),
                                             style = MaterialTheme.typography.bodySmall, color = BEError)
                                     }
                                 }
@@ -208,7 +211,7 @@ fun MisReservasScreen(navController: NavController) {
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.ui.graphics.Color(0xFF009EE3))
                                     ) {
-                                        Text("💳 Pagar con MercadoPago", color = Color.White,
+                                        Text("Pagar con MercadoPago", color = Color.White,
                                             style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
@@ -217,7 +220,7 @@ fun MisReservasScreen(navController: NavController) {
                                 if (estado == "confirmada_usuario") {
                                     Spacer(Modifier.height(8.dp))
                                     Surface(shape = RoundedCornerShape(8.dp), color = BEPrimary.copy(0.08f)) {
-                                        Text("🕐 Confirmaste tu parte. Estamos esperando que el seller confirme para habilitar el pago.",
+                                        Text("Confirmaste tu parte. Estamos esperando que el seller confirme para habilitar el pago.",
                                             modifier = Modifier.padding(8.dp),
                                             style = MaterialTheme.typography.bodySmall, color = BEPrimary)
                                     }
@@ -253,7 +256,7 @@ fun MisReservasScreen(navController: NavController) {
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = BEWarning),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, BEWarning.copy(0.5f))
-                                    ) { Text("🧑‍💼 Pasajeros (nombre y DNI)", fontWeight = FontWeight.SemiBold) }
+                                    ) { Text("Pasajeros (nombre y DNI)", fontWeight = FontWeight.SemiBold) }
                                     Spacer(Modifier.height(6.dp))
                                     OutlinedButton(
                                         onClick = { pasajerosTarget = Pair(reservaId, serviciosList) },
@@ -261,7 +264,7 @@ fun MisReservasScreen(navController: NavController) {
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = BEWarning),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, BEWarning.copy(0.5f))
-                                    ) { Text("👥 Cantidad por actividad", fontWeight = FontWeight.SemiBold) }
+                                    ) { Text("Cantidad por actividad", fontWeight = FontWeight.SemiBold) }
                                     Spacer(Modifier.height(6.dp))
                                     OutlinedButton(
                                         onClick = {
@@ -275,7 +278,7 @@ fun MisReservasScreen(navController: NavController) {
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = BEPrimary),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, BEPrimary.copy(0.4f))
-                                    ) { Text("📅 Modificar fechas", fontWeight = FontWeight.SemiBold) }
+                                    ) { Text("Modificar fechas", fontWeight = FontWeight.SemiBold) }
                                     Spacer(Modifier.height(6.dp))
                                     Button(
                                         onClick = {
@@ -295,7 +298,7 @@ fun MisReservasScreen(navController: NavController) {
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = BEPrimary)
-                                    ) { Text("✅ Confirmar reserva", color = Color.White, fontWeight = FontWeight.SemiBold) }
+                                    ) { Text("Confirmar reserva", color = Color.White, fontWeight = FontWeight.SemiBold) }
                                     Spacer(Modifier.height(6.dp))
                                     OutlinedButton(
                                         onClick = { cancelarTarget = reservaId },
@@ -303,7 +306,7 @@ fun MisReservasScreen(navController: NavController) {
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = BEError),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, BEError.copy(0.4f))
-                                    ) { Text("✕ Cancelar reserva", fontWeight = FontWeight.SemiBold) }
+                                    ) { Text("Cancelar reserva", fontWeight = FontWeight.SemiBold) }
                                 }
 
                                 // Reseña
@@ -318,7 +321,7 @@ fun MisReservasScreen(navController: NavController) {
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = BEStarColor),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, BEStarColor.copy(0.5f))
-                                    ) { Text("★ Dejar reseña", fontWeight = FontWeight.SemiBold) }
+                                    ) { Text("Dejar reseña", fontWeight = FontWeight.SemiBold) }
                                 }
 
                                 // Chat
@@ -329,7 +332,7 @@ fun MisReservasScreen(navController: NavController) {
                                     shape = RoundedCornerShape(8.dp),
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = BEPrimary),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, BEPrimary.copy(0.4f))
-                                ) { Text("💬 Chat con equipo", fontWeight = FontWeight.SemiBold) }
+                                ) { Text("Chat con equipo", fontWeight = FontWeight.SemiBold) }
 
                                 // Ver en mapa
                                 Spacer(Modifier.height(6.dp))
@@ -339,7 +342,7 @@ fun MisReservasScreen(navController: NavController) {
                                     shape = RoundedCornerShape(8.dp),
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = BEPrimary),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, BEPrimary.copy(0.4f))
-                                ) { Text("🗺️ Ver en mapa", fontWeight = FontWeight.SemiBold) }
+                                ) { Text("Ver en mapa", fontWeight = FontWeight.SemiBold) }
                             }
                         }
                     }
